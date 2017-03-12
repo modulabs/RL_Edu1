@@ -53,12 +53,3 @@ while True:
     if done:
         print("Finished with reward", reward)
         break
-
-
-'''
-env = gym.make("FrozenLake-v0")
-observation = env.reset()
-for _ in range(1000):
-    env.render()
-    action = env.action_space. 
-'''
