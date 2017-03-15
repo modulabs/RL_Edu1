@@ -74,7 +74,7 @@ if __name__ == "__main__":
 
     env.close()
     OPENAI_API_KEY = os.environ['OPENAI_API_KEY']
-    gym.upload('/tmp/frozenlake-experiment-1', api_key=OPENAI_API_KEY)
+    gym.upload('/tmp/frozenlake-experiment-0', api_key=OPENAI_API_KEY)
 
     visualize(Q, stats, "qlearning_alpha_e_greedy.png")
 

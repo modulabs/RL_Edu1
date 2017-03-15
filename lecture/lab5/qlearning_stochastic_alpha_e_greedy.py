@@ -27,7 +27,7 @@ def qlearning_alpha_e_greedy(env, n_episodes=2000, gamma=0.99, alpha=0.85):
         total_reward = 0
 
         # extremely large variance depending on decaying speed, given n_epi=2000
-        e = 1.0 /((i//10) + 1.0)
+        e = 1.0 /((i//100) + 1.0)
 
 
         while not done:
@@ -77,8 +77,9 @@ if __name__ == "__main__":
 
     env = gym.make('FrozenLake-v0')
     env = wrappers.Monitor(env, '/tmp/frozenlake-experiment-1', force=True)
-    Q, stats = qlearning_alpha_e_greedy(env, n_episodes=100)
+    Q, stats = qlearning_alpha_e_greedy(env, n_episodes=100, gamma=0.5, alpha=0.5)
     env.close()
-    gym.upload('/tmp/frozenlake-experiment-1', api_key='sk_ehE2RoScTsiq8xtAXmMVGQ')
+    OPENAI_API_KEY = os.environ['OPENAI_API_KEY']
+    gym.upload('/tmp/frozenlake-experiment-1', api_key=OPENAI_API_KEY)
     visualize(Q, stats, "qlearning_e_greedy.png")
 
