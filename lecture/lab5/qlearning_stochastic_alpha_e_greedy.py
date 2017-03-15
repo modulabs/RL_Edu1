@@ -1,15 +1,19 @@
 import gym
+from gym import wrappers
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
+import os
 
 def qlearning_alpha_e_greedy(env, n_episodes=2000, gamma=0.99, alpha=0.85):
-    print("Q space initialized: {} x {}".format(env.nS, env.nA))
+    nS = env.observation_space.n
+    nA = env.action_space.n
+    print("Q space initialized: {} x {}".format(nS, nA))
 
-    Q = np.zeros([env.nS, env.nA])
+    Q = np.zeros([nS, nA])
     # policy: pi(state) -> prob. distribution of actions
-    policy = make_decay_e_greedy_policy(Q, env.nA)
+    policy = make_decay_e_greedy_policy(Q, nA)
     reward_per_episode = np.zeros(n_episodes)
 
     for i in range(n_episodes):
@@ -29,7 +33,7 @@ def qlearning_alpha_e_greedy(env, n_episodes=2000, gamma=0.99, alpha=0.85):
         while not done:
             # Choose action by decaying e-greedy
             probs = policy(s, e)
-            a = np.random.choice(np.arange(env.nA), p=probs)
+            a = np.random.choice(np.arange(nA), p=probs)
             # take a step
             next_s, r, done, _ = env.step(a)
 
@@ -70,7 +74,11 @@ def visualize(Q, stats, output_title="output.png"):
     plt.savefig(output_title)
 
 if __name__ == "__main__":
+
     env = gym.make('FrozenLake-v0')
-    Q, stats = qlearning_alpha_e_greedy(env)
+    env = wrappers.Monitor(env, '/tmp/frozenlake-experiment-1', force=True)
+    Q, stats = qlearning_alpha_e_greedy(env, n_episodes=100)
+    env.close()
+    gym.upload('/tmp/frozenlake-experiment-1', api_key='sk_ehE2RoScTsiq8xtAXmMVGQ')
     visualize(Q, stats, "qlearning_e_greedy.png")
 
