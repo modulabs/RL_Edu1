@@ -22,11 +22,11 @@ class Q_network(object):
 
         # initialize tf feedforward neural network
         self.X = tf.placeholder(shape=[1, self.n_input], dtype=tf.float32)
-        self.Theta = tf.Variable(tf.random_uniform([self.n_input, self.n_output], 0, 0.01))
-        self.Q_pred = tf.matmul(self.X, self.Theta)
+        self.W = tf.Variable(tf.random_uniform([self.n_input, self.n_output], 0, 0.01))
+        self.Q_pred = tf.matmul(self.X, self.W)
         self.Y = tf.placeholder(shape=[1, self.n_output], dtype=tf.float32)
 
-        # kickstart learning Theta
+        # kickstart learning W
         self.loss = tf.reduce_sum(tf.square(self.Y - self.Q_pred))
         self.train = tf.train.GradientDescentOptimizer(learning_rate=alpha).minimize(self.loss)
         # utility function
@@ -80,7 +80,7 @@ def q_learning(env, n_episodes=2000, gamma=0.99, alpha=0.1):
 
             reward_per_episode[i] = total_reward
 
-        return estimator.Theta, reward_per_episode
+        return estimator.W, reward_per_episode
 
 def make_epsilon_greedy_policy(estimator, n_output):
     def policy_fn(sess, state, epsilon):
@@ -114,11 +114,11 @@ def visualize(estimator, stats, output_title="output.png"):
 
 if __name__ == "__main__":
     env = gym.make('FrozenLake-v0')
-    env = wrappers.Monitor(env, '/tmp/frozenlake-experiment-qnetwork', force=True)
-    Theta, stats = q_learning(env)
+    env = wrappers.Monitor(env, '/tmp/frozenlake-experiment-qnetwork-0', force=True)
+    W, stats = q_learning(env)
     env.close()
     OPENAI_API_KEY = os.environ['OPENAI_API_KEY']
-    gym.upload('/tmp/frozenlake-experiment-2', api_key=OPENAI_API_KEY)
+    gym.upload('/tmp/frozenlake-experiment-qnetwork-0', api_key=OPENAI_API_KEY)
 
-    visualize(Theta, stats, "qnetwork_frozen.png")
+    visualize(W, stats, "qnetwork_frozen.png")
 

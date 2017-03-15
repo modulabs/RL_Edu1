@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import os
 import tensorflow as tf
+import itertools
 
 
 class Q_network(object):
@@ -16,29 +17,37 @@ class Q_network(object):
     def __init__(self, env, gamma, alpha):
         super(Q_network, self).__init__()
 
-        self.n_input = env.observation_space.n
+        self.n_input = env.observation_space.shape[0]
         self.n_output = env.action_space.n
         self.alpha = alpha
         self.gamma = gamma
 
         # initialize tf feedforward neural network
-        self.X = tf.placeholder(shape=[1, self.n_input], dtype=tf.float32)
-        self.Theta = tf.Variable(tf.random_uniform([self.n_input, self.n_output], 0, 0.01))
-        self.Q_pred = tf.matmul(self.X, self.Theta)
+        self.X = tf.placeholder(shape=[None, self.n_input], dtype=tf.float32)
+
+        # first hidden layer
+        self.W = tf.get_variable("W", shape=[self.n_input, self.n_output],
+            initializer=tf.contrib.layers.xavier_initializer())
+
+        self.Q_pred = tf.matmul(self.X, self.W)
         self.Y = tf.placeholder(shape=[1, self.n_output], dtype=tf.float32)
 
-        # kickstart learning Theta
+        # kickstart learning W
         self.loss = tf.reduce_sum(tf.square(self.Y - self.Q_pred))
-        self.train = tf.train.GradientDescentOptimizer(learning_rate=alpha).minimize(self.loss)
-        # utility function
-        self.one_hot = make_one_hot(env.observation_space.n)
+        self.train = tf.train.AdamOptimizer(learning_rate=alpha).minimize(self.loss)
 
     def predict(self, sess, s):
-        Qs = sess.run(self.Q_pred, feed_dict={self.X: self.one_hot(s)})
+        feed_dict = {self.X: self.preprocess(s)}
+        Qs = sess.run(self.Q_pred, feed_dict=feed_dict)
         return Qs
 
     def update(self, sess, s, y):
-        sess.run(self.train, feed_dict={self.X: self.one_hot(s), self.Y: y})
+        feed_dict = {self.X: self.preprocess(s), self.Y: y}
+        sess.run(self.train, feed_dict=feed_dict)
+
+    def preprocess(self, s):
+        return np.reshape(s, [1, self.n_input])
+
 
 
 def q_learning(env, n_episodes=2000, gamma=0.99, alpha=0.1):
@@ -54,34 +63,56 @@ def q_learning(env, n_episodes=2000, gamma=0.99, alpha=0.1):
         sess.run(tf.global_variables_initializer())
 
         for i in range(n_episodes):
-            s = env.reset()
-            done = False
-            total_reward = 0
-            e = 1.0 / ((i / 10) + 10)
-            # useful for debugging
-            log_episode(i, n_episodes)
-
-            while not done:
-                probs, Qs = policy(sess, s, e)
-                a = np.random.choice(np.arange(len(probs)), p=probs)
-                next_s, r, done, _ = env.step(a)
-
-                # update our target == Qs
-                if done:
-                    Qs[0, a] = r
-                else:
-                    next_Qs = estimator.predict(sess, next_s)
-                    Qs[0, a] = r + gamma * np.max(next_Qs)
-
-                # online learning
-                estimator.update(sess, s, Qs)
-
-                s = next_s
-                total_reward += r
+            total_reward = improve_estimator(i, n_episodes, sess,
+                env, gamma, policy, estimator, failure_penalty=-100)
 
             reward_per_episode[i] = total_reward
 
-        return estimator.Theta, reward_per_episode
+        test_estimator(env, estimator, sess)
+
+        return estimator, reward_per_episode
+
+def improve_estimator(i_epi, n_episodes, sess, env, gamma, policy, estimator, failure_penalty=-100):
+    s = env.reset()
+    done = False
+    total_reward = 0
+    e = 1.0 / ((i_epi / 10) + 10)
+    # useful for debugging
+    log_episode(i_epi, n_episodes)
+
+    while not done:
+        probs, Qs = policy(sess, s, e)
+        a = np.random.choice(np.arange(len(probs)), p=probs)
+        next_s, r, done, _ = env.step(a)
+
+        # update our target == Qs
+        if done:
+            Qs[0, a] = failure_penalty
+        else:
+            next_Qs = estimator.predict(sess, next_s)
+            Qs[0, a] = r + gamma * np.max(next_Qs)
+
+        # online learning
+        estimator.update(sess, s, Qs)
+
+        s = next_s
+        total_reward += r
+    return total_reward
+
+def test_estimator(env, estimator, sess):
+    s = env.reset()
+    reward_sum = 0
+    for t in itertools.count():
+        env.render()
+        Qs = estimator.predict(sess, estimator.preprocess(s))
+        # follow the greedy policy
+        a = np.argmax(Qs)
+        s, r, done, _ = env.step(a)
+        reward_sum += r
+        if done:
+            print("Total rewards: {}".format(reward_sum))
+            print("Survived until t = {}".format(t))
+            break
 
 def make_epsilon_greedy_policy(estimator, n_output):
     def policy_fn(sess, state, epsilon):
@@ -92,11 +123,6 @@ def make_epsilon_greedy_policy(estimator, n_output):
         return probs, q_values
     return policy_fn
 
-def make_one_hot(size):
-    def one_hot(x):
-        return np.identity(size)[x: x+1]
-    return one_hot
-
 def log_episode(i_epi, n_epi):
     if (i_epi + 1) % 100 == 0:
         print("\rEpisode {}/{}.".format(i_epi + 1, n_epi), end="")
@@ -104,8 +130,6 @@ def log_episode(i_epi, n_epi):
 
 def visualize(estimator, stats, output_title="output.png"):
     print("Success rate : {}".format(np.sum(stats)/len(stats)))
-    print("Final Q-network Values")
-    print(estimator)
     plt.figure(figsize=(8,12))
     plt.title("Reward_per_episode")
     plt.plot(stats)
@@ -115,12 +139,12 @@ def visualize(estimator, stats, output_title="output.png"):
     print("###RUN THIS MANY TIMES TO SEE THE CRAZY VARIANCE###")
 
 if __name__ == "__main__":
-    env = gym.make('FrozenLake-v0')
-    env = wrappers.Monitor(env, '/tmp/frozenlake-experiment-qnetwork', force=True)
-    Theta, stats = q_learning(env)
+    env = gym.make('CartPole-v0')
+    env = wrappers.Monitor(env, '/tmp/cartpole-experiment-qnetwork-0', force=True)
+    estimator, stats = q_learning(env, n_episodes=500)
     env.close()
     OPENAI_API_KEY = os.environ['OPENAI_API_KEY']
-    gym.upload('/tmp/frozenlake-experiment-2', api_key=OPENAI_API_KEY)
+    gym.upload('/tmp/cartpole-experiment-qnetwork-0', api_key=OPENAI_API_KEY)
 
-    visualize(Theta, stats, "qnetwork_frozen.png")
+    # visualize(estimator, stats, "qnetwork_cartpole.png")
 
