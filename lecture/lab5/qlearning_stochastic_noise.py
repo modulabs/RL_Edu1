@@ -38,7 +38,7 @@ def qlearning_noise(env, n_episodes=2000, gamma=0.95):
             a = np.random.choice(np.arange(env.nA), p=probs)
             # take a step
             next_s, r, done, _ = env.step(a)
-
+            print("reward: {}".format(r))
             # backup Q, no alpha
             td_target = r + gamma * np.max(Q[next_s, :])
             Q[s, a] = td_target
