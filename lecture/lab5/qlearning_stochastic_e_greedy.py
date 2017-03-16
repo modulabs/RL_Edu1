@@ -11,11 +11,13 @@ if "../../" not in sys.path:
 from lib import plotting
 
 def qlearning_e_greedy(env, n_episodes=2000, gamma=0.95):
-    print("Q space initialized: {} x {}".format(env.nS, env.nA))
+    nS = env.observation_space.n
+    nA = env.action_space.n
+    print("Q space initialized: {} x {}".format(nS, nA))
 
-    Q = np.zeros([env.nS, env.nA])
+    Q = np.zeros([nS, nA])
     # policy: pi(state) -> prob. distribution of actions
-    policy = make_decay_e_greedy_policy(Q, env.nA)
+    policy = make_decay_e_greedy_policy(Q, nA)
     # Keeps track of useful statistics
     stats = plotting.EpisodeStats(
         episode_lengths=np.zeros(n_episodes),
@@ -36,7 +38,7 @@ def qlearning_e_greedy(env, n_episodes=2000, gamma=0.95):
         for t in itertools.count():
             # Choose action by decaying e-greedy
             probs = policy(s, e)
-            a = np.random.choice(np.arange(env.nA), p=probs)
+            a = np.random.choice(np.arange(nA), p=probs)
             # take a step
             next_s, r, done, _ = env.step(a)
 
