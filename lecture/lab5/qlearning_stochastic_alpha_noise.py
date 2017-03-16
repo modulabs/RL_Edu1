@@ -7,8 +7,8 @@ import matplotlib
 from lib import plotting
 import os
 import itertools
-def qlearning_alpha_noise(env, n_episodes=2000, gamma=0.99, alpha=0.85, best_enabled=False):
 
+def qlearning_alpha_noise(env, n_episodes=2000, gamma=0.99, alpha=0.85, best_enabled=False):
     if best_enabled:
         # record your best-tuned hyperparams here
         env.seed(0)
@@ -58,7 +58,6 @@ def qlearning_alpha_noise(env, n_episodes=2000, gamma=0.99, alpha=0.85, best_ena
 
             if done:
                 break
-
 
         # Update statistics
         stats.episode_rewards[i] += total_reward
