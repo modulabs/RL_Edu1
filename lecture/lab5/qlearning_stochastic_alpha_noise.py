@@ -2,17 +2,12 @@ import gym
 from gym import wrappers
 import sys
 import numpy as np
-import matplotlib.pyplot as plt
+from matplotlib import pyplot as plt
 import matplotlib
+from lib import plotting
 import os
-
+import itertools
 def qlearning_alpha_noise(env, n_episodes=2000, gamma=0.99, alpha=0.85, best_enabled=False):
-    nS = env.observation_space.n
-    nA = env.action_space.n
-
-    print("Q space initialized: {} x {}".format(nS, nA))
-
-    Q = np.zeros([nS, nA])
 
     if best_enabled:
         # record your best-tuned hyperparams here
@@ -20,11 +15,16 @@ def qlearning_alpha_noise(env, n_episodes=2000, gamma=0.99, alpha=0.85, best_ena
         np.random.seed(0)
         alpha = 0.05
         gamma = 0.99
-        # also check the modify_reward fn
 
-    # policy: pi(state) -> prob. distribution of actions
+    nS = env.observation_space.n
+    nA = env.action_space.n
+    Q = np.zeros([nS, nA])
     policy = make_decay_noisy_policy(Q, nA)
-    reward_per_episode = np.zeros(n_episodes)
+
+    # Keeps track of useful statistics
+    stats = plotting.EpisodeStats(
+        episode_lengths=np.zeros(n_episodes),
+        episode_rewards=np.zeros(n_episodes))
 
     for i in range(n_episodes):
         # useful for debugging
@@ -34,15 +34,13 @@ def qlearning_alpha_noise(env, n_episodes=2000, gamma=0.99, alpha=0.85, best_ena
         done = False
         total_reward = 0
 
-        while not done:
-            # Choose action by noisy probs
+        for t in itertools.count():
             if best_enabled:
                 probs = policy(s, (i/10 + 1.0))
             else:
                 probs = policy(s, i + 1.0)
             a = np.random.choice(np.arange(nA), p=probs)
 
-            # take a step
             next_s, r, done, _ = env.step(a)
 
             if best_enabled:
@@ -54,11 +52,19 @@ def qlearning_alpha_noise(env, n_episodes=2000, gamma=0.99, alpha=0.85, best_ena
             td_delta = td_target - Q[s, a]
             Q[s, a] += alpha * td_delta
 
+
             s = next_s
             total_reward += r
 
-        reward_per_episode[i] = total_reward
-    return Q, reward_per_episode
+            if done:
+                break
+
+
+        # Update statistics
+        stats.episode_rewards[i] += total_reward
+        stats.episode_lengths[i] = t
+
+    return Q, stats
 
 def make_decay_noisy_policy(Q, nA):
     def policy_fn(state, decaying_factor):
@@ -101,7 +107,7 @@ def is_solved(stats):
     def moving_avg(x, n=100):
         return np.convolve(x, np.ones((n,))/n, mode='valid')
 
-    ma = moving_avg(stats, TARGET_EPISODE_INTERVAL)
+    ma = moving_avg(stats.episode_rewards, TARGET_EPISODE_INTERVAL)
     peaks = np.where(ma > TARGET_AVG_REWARD)[0]
     if len(peaks) > 0:
         print("solved after {} episodes".format(peaks[0]))
@@ -111,16 +117,19 @@ def is_solved(stats):
         return False
 
 
+
 def visualize(Q, stats, output_title="output.png"):
-    print("Success rate : {}".format(np.sum(stats)/len(stats)))
+    success_rate = np.sum(stats.episode_rewards)/len(stats.episode_rewards)
+    print("Success rate : {}".format(success_rate))
     print("Final Q-Table Values")
     print(Q)
     plt.figure(figsize=(8,12))
     plt.title("Reward_per_episode")
-    plt.plot(stats)
+    plt.plot(stats.episode_rewards)
     plt.xlabel("Episode")
     plt.ylabel("Reward")
     plt.savefig(output_title)
+
 
 if __name__ == "__main__":
     env = gym.make('FrozenLake-v0')
