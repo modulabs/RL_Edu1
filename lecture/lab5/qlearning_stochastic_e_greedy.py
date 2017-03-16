@@ -4,6 +4,11 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
+import itertools
+if "../../" not in sys.path:
+  sys.path.append("../../")
+
+from lib import plotting
 
 def qlearning_e_greedy(env, n_episodes=2000, gamma=0.95):
     print("Q space initialized: {} x {}".format(env.nS, env.nA))
@@ -11,7 +16,10 @@ def qlearning_e_greedy(env, n_episodes=2000, gamma=0.95):
     Q = np.zeros([env.nS, env.nA])
     # policy: pi(state) -> prob. distribution of actions
     policy = make_decay_e_greedy_policy(Q, env.nA)
-    reward_per_episode = np.zeros(n_episodes)
+    # Keeps track of useful statistics
+    stats = plotting.EpisodeStats(
+        episode_lengths=np.zeros(n_episodes),
+        episode_rewards=np.zeros(n_episodes))
 
     for i in range(n_episodes):
         # useful for debugging
@@ -25,7 +33,7 @@ def qlearning_e_greedy(env, n_episodes=2000, gamma=0.95):
 
         e = 1.0 /((i/10) + 1.0)
 
-        while not done:
+        for t in itertools.count():
             # Choose action by decaying e-greedy
             probs = policy(s, e)
             a = np.random.choice(np.arange(env.nA), p=probs)
@@ -38,9 +46,14 @@ def qlearning_e_greedy(env, n_episodes=2000, gamma=0.95):
 
             s = next_s
             total_reward += r
+            if done:
+                break
 
-        reward_per_episode[i] = total_reward
-    return Q, reward_per_episode
+        # Update statistics
+        stats.episode_rewards[i] += total_reward
+        stats.episode_lengths[i] = t
+
+    return Q, stats
 
 def make_decay_e_greedy_policy(Q, nA):
     def policy_fn(state, epsilon):
@@ -55,28 +68,9 @@ def make_decay_e_greedy_policy(Q, nA):
         return A
     return policy_fn
 
-
-def visualize(Q, stats, output_title="output.png"):
-    print("Success rate : {}".format(np.sum(stats)/len(stats)))
-    print("Final Q-Table Values")
-    print(Q)
-    plt.figure(figsize=(8,12))
-    plt.title("Reward_per_episode")
-    plt.plot(stats)
-    plt.xlabel("Episode")
-    plt.ylabel("Reward")
-    plt.savefig(output_title)
-
 if __name__ == "__main__":
-    # compare the score between v0 and v3
-    # from gym.envs.registration import register
-    # register(
-    #         id = 'FrozenLake-v3',
-    #         entry_point = 'gym.envs.toy_text:FrozenLakeEnv',
-    #         kwargs = {'map_name' : '4x4', 'is_slippery':False}
-    # )
-    # env = gym.make('FrozenLake-v3')
     env = gym.make('FrozenLake-v0')
     Q, stats = qlearning_e_greedy(env)
-    visualize(Q, stats, "qlearning_e_greedy.png")
+    avg_reward = np.sum(stats.episode_rewards)/len(stats.episode_rewards)
+    print("Average reward : {}".format(avg_reward))
 

@@ -2,28 +2,28 @@ import gym
 from gym import wrappers
 import sys
 import numpy as np
-from matplotlib import pyplot as plt
+import matplotlib.pyplot as plt
 import matplotlib
-
+import itertools
 if "../../" not in sys.path:
   sys.path.append("../../")
-
 from lib import plotting
 import os
-import itertools
 
-def qlearning_alpha_noise(env, n_episodes=2000, gamma=0.99, alpha=0.85, best_enabled=False):
+def sarsa(env, n_episodes=2000, gamma=0.99, alpha=0.5, e=0.1, best_enabled=False):
+    nS = env.observation_space.n
+    nA = env.action_space.n
+
     if best_enabled:
         # record your best-tuned hyperparams here
         env.seed(0)
         np.random.seed(0)
         alpha = 0.05
         gamma = 0.99
+        e = 1.0
 
-    nS = env.observation_space.n
-    nA = env.action_space.n
     Q = np.zeros([nS, nA])
-    policy = make_decay_noisy_policy(Q, nA)
+    policy = make_epsilon_greedy_policy(Q, nA)
 
     # Keeps track of useful statistics
     stats = plotting.EpisodeStats(
@@ -31,33 +31,35 @@ def qlearning_alpha_noise(env, n_episodes=2000, gamma=0.99, alpha=0.85, best_ena
         episode_rewards=np.zeros(n_episodes))
 
     for i in range(n_episodes):
-        # useful for debugging
+        # useful for debuggin
         log_episode(i, n_episodes)
 
         s = env.reset()
         done = False
         total_reward = 0
 
-        for t in itertools.count():
-            if best_enabled:
-                probs = policy(s, (i/10 + 1.0))
-            else:
-                probs = policy(s, i + 1.0)
-            a = np.random.choice(np.arange(nA), p=probs)
+        probs = policy(s, e)
+        a = np.random.choice(np.arange(nA), p=probs)
 
+        for t in itertools.count():
+            # Choose action by decaying e-greedy
+            # take a step
             next_s, r, done, _ = env.step(a)
+
+            next_probs = policy(next_s, e)
+            next_a = np.random.choice(np.arange(nA), p=next_probs)
 
             if best_enabled:
                 mod_r = modify_reward(r, done)
-                td_target = mod_r + gamma * np.max(Q[next_s, :])
+                td_target = mod_r + gamma * Q[next_s, next_a]
             else:
-                td_target = r + gamma * np.max(Q[next_s, :])
+                td_target = r + gamma * Q[next_s, next_a]
 
             td_delta = td_target - Q[s, a]
             Q[s, a] += alpha * td_delta
 
-
             s = next_s
+            a = next_a
             total_reward += r
 
             if done:
@@ -69,19 +71,24 @@ def qlearning_alpha_noise(env, n_episodes=2000, gamma=0.99, alpha=0.85, best_ena
 
     return Q, stats
 
-def make_decay_noisy_policy(Q, nA):
-    def policy_fn(state, decaying_factor):
-        noise = np.random.randn(1, nA) / decaying_factor
-        # don't manually break ties as being of equal values is unlikely
-        dist = Q[state, :]
-        best_action = np.argmax(dist + noise)
-        # make the policy deterministic as per argmax
-        return np.eye(nA, dtype=float)[best_action]
+
+def make_epsilon_greedy_policy(Q, nA):
+    def policy_fn(state, epsilon):
+        # give every action an equal prob of e / n(A)
+        A = np.ones(nA, dtype=float) * epsilon / nA
+        # random argmax
+        m = np.max(Q[state, :])
+        max_indices = np.where(Q[state, :]==m)[0]
+        best_action = np.random.choice(max_indices)
+        # give the best action a bump prob of 1 - e
+        A[best_action] += (1.0 - epsilon)
+        return A
     return policy_fn
 
 
+
 def modify_reward(reward, done):
-    # arbitrary scaling factors
+    # 100.0 being arbitrary scaling factors
     if done and reward == 0:
         return -100.0
     elif done:
@@ -118,16 +125,15 @@ def is_solved(stats, target, interval):
         print("did not pass the openai criteria")
         return False
 
+
 if __name__ == "__main__":
     TARGET_AVG_REWARD = 0.78
     TARGET_EPISODE_INTERVAL = 100
-
     env = gym.make('FrozenLake-v0')
-    env = wrappers.Monitor(env, '/tmp/frozenlake-experiment-0', force=True)
-    Q, stats = qlearning_alpha_noise(env, best_enabled=True)
-
+    env = wrappers.Monitor(env, '/tmp/frozenlake-experiment-1', force=True)
+    Q, stats = sarsa(env)
     env.close()
 
     if is_solved(stats, TARGET_AVG_REWARD, TARGET_EPISODE_INTERVAL):
         OPENAI_API_KEY = os.environ['OPENAI_API_KEY']
-        gym.upload('/tmp/frozenlake-experiment-0', api_key=OPENAI_API_KEY)
+        gym.upload('/tmp/frozenlake-experiment-1', api_key=OPENAI_API_KEY)
