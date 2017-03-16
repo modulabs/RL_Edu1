@@ -95,7 +95,9 @@ def is_solved(stats):
     """
     checks if openai's criteria has been met
     """
-    CRITERIA = 0.78
+    TARGET_AVG_REWARD = 0.78
+    TARGET_EPISODE_INTERVAL = 100
+
     # FrozenLake-v0 is considered "solved" when the agent
     # obtains an average reward of at least 0.78 over 100
     # consecutive episodes.
@@ -103,14 +105,17 @@ def is_solved(stats):
     def moving_avg(x, n=100):
         return np.convolve(x, np.ones((n,))/n, mode='valid')
 
-    ma = moving_avg(stats)
-    peaks = np.where(ma > CRITERIA)[0]
+    ma = moving_avg(stats, TARGET_EPISODE_INTERVAL)
+    print(ma)
+    peaks = np.where(ma > TARGET_AVG_REWARD)[0]
     if len(peaks) > 0:
+        print(peaks)
         print("solved after {} episodes".format(peaks[0]))
         return True
     else:
         print("did not pass the openai criteria")
         return False
+
 
 def visualize(Q, stats, output_title="output.png"):
     print("Success rate : {}".format(np.sum(stats)/len(stats)))
