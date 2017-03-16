@@ -11,11 +11,13 @@ if "../../" not in sys.path:
 from lib import plotting
 
 def qlearning_noise(env, n_episodes=2000, gamma=0.95):
-    print("Q space initialized: {} x {}".format(env.nS, env.nA))
+    nS = env.observation_space.n
+    nA = env.action_space.n
+    print("Q space initialized: {} x {}".format(nS, nA))
 
-    Q = np.zeros([env.nS, env.nA])
+    Q = np.zeros([nS, nA])
     # policy: pi(state) -> prob. distribution of actions
-    policy = make_noisy_policy(Q, env.nA)
+    policy = make_noisy_policy(Q, nA)
 
     # Keeps track of useful statistics
     stats = plotting.EpisodeStats(
@@ -35,10 +37,9 @@ def qlearning_noise(env, n_episodes=2000, gamma=0.95):
         for t in itertools.count():
             # Choose action by noisy probs
             probs = policy(s, i)
-            a = np.random.choice(np.arange(env.nA), p=probs)
+            a = np.random.choice(np.arange(nA), p=probs)
             # take a step
             next_s, r, done, _ = env.step(a)
-            print("reward: {}".format(r))
             # backup Q, no alpha
             td_target = r + gamma * np.max(Q[next_s, :])
             Q[s, a] = td_target
@@ -56,13 +57,13 @@ def qlearning_noise(env, n_episodes=2000, gamma=0.95):
 
 def make_noisy_policy(Q, nA):
     def policy_fn(state, episode_i):
-        noise = np.random.randn(1, env.nA) / (episode_i + 1)
+        noise = np.random.randn(1, nA) / (episode_i + 1)
         # don't manually break ties as being of equal values is unlikely
         # Q[state,:] lives on [0, 1]
         dist = Q[state, :]
         best_action = np.argmax(dist + noise)
         # make the policy deterministic as per argmax
-        return np.eye(env.nA, dtype=float)[best_action]
+        return np.eye(nA, dtype=float)[best_action]
     return policy_fn
 
 if __name__ == "__main__":
