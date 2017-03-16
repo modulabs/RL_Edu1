@@ -51,7 +51,6 @@ def q_learning(env, n_episodes=2000, gamma=0.99, alpha=0.1):
 
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-
         for i in range(n_episodes):
             s = env.reset()
             done = False

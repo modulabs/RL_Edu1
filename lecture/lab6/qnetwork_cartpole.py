@@ -50,54 +50,58 @@ class Q_network(object):
 
 
 
-def q_learning(env, n_episodes=2000, gamma=0.99, alpha=0.1):
+def run_agent(env, n_episodes=2000, gamma=0.99, alpha=0.1):
     """
     using Q learning with Q network under epilson-greedy policy
     """
-    reward_per_episode = np.zeros(n_episodes)
     estimator = Q_network(env, gamma, alpha)
     policy = make_epsilon_greedy_policy(
         estimator, estimator.n_output)
 
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-
-        for i in range(n_episodes):
-            total_reward = improve_estimator(i, n_episodes, sess,
-                env, gamma, policy, estimator, failure_penalty=-100)
-
-            reward_per_episode[i] = total_reward
-
+        stats = q_learning(n_episodes, sess, env,
+            gamma, policy, estimator, failure_penalty=-100)
         test_estimator(env, estimator, sess)
 
-        return estimator, reward_per_episode
+    return estimator, stats
 
-def improve_estimator(i_epi, n_episodes, sess, env, gamma, policy, estimator, failure_penalty=-100):
-    s = env.reset()
-    done = False
-    total_reward = 0
-    e = 1.0 / ((i_epi / 10) + 10)
-    # useful for debugging
-    log_episode(i_epi, n_episodes)
+def q_learning(n_episodes, sess, env, gamma, policy, estimator, failure_penalty=-100):
+    reward_per_episode = np.zeros(n_episodes)
+    step_history = []
+    for i in range(n_episodes):
+        s = env.reset()
+        done = False
+        total_reward = 0
+        e = 1.0 / ((i / 10) + 10)
+        # useful for debugging
+        log_episode(i, n_episodes)
 
-    while not done:
-        probs, Qs = policy(sess, s, e)
-        a = np.random.choice(np.arange(len(probs)), p=probs)
-        next_s, r, done, _ = env.step(a)
+        for t in itertools.count():
+            probs, Qs = policy(sess, s, e)
+            a = np.random.choice(np.arange(len(probs)), p=probs)
+            next_s, r, done, _ = env.step(a)
 
-        # update our target == Qs
-        if done:
-            Qs[0, a] = failure_penalty
-        else:
-            next_Qs = estimator.predict(sess, next_s)
-            Qs[0, a] = r + gamma * np.max(next_Qs)
+            # update our target == Qs
+            if done:
+                Qs[0, a] = failure_penalty
+                step_history.append(t)
+                break
+            else:
+                next_Qs = estimator.predict(sess, next_s)
+                Qs[0, a] = r + gamma * np.max(next_Qs)
 
-        # online learning
-        estimator.update(sess, s, Qs)
+            # online learning
+            estimator.update(sess, s, Qs)
+            s = next_s
+            total_reward += r
+        print("Episode: {}  steps: {}".format(i, t))
+        # If last 10's avg steps are 500, it's good enough
+        if len(step_history) > 10 and np.mean(step_history[-10:]) > 500:
+            break
 
-        s = next_s
-        total_reward += r
-    return total_reward
+        reward_per_episode[i] = total_reward
+    return reward_per_episode
 
 def test_estimator(env, estimator, sess):
     s = env.reset()
@@ -110,6 +114,7 @@ def test_estimator(env, estimator, sess):
         s, r, done, _ = env.step(a)
         reward_sum += r
         if done:
+            print("Test the trained model")
             print("Total rewards: {}".format(reward_sum))
             print("Survived until t = {}".format(t))
             break
@@ -140,11 +145,11 @@ def visualize(estimator, stats, output_title="output.png"):
 
 if __name__ == "__main__":
     env = gym.make('CartPole-v0')
-    env = wrappers.Monitor(env, '/tmp/cartpole-experiment-qnetwork-0', force=True)
-    estimator, stats = q_learning(env, n_episodes=500)
-    env.close()
-    OPENAI_API_KEY = os.environ['OPENAI_API_KEY']
-    gym.upload('/tmp/cartpole-experiment-qnetwork-0', api_key=OPENAI_API_KEY)
+    # env = wrappers.Monitor(env, '/tmp/cartpole-experiment-qnetwork-0', force=True)
+    estimator, stats = run_agent(env, n_episodes=500)
+    # env.close()
+    # OPENAI_API_KEY = os.environ['OPENAI_API_KEY']
+    # gym.upload('/tmp/cartpole-experiment-qnetwork-0', api_key=OPENAI_API_KEY)
 
     # visualize(estimator, stats, "qnetwork_cartpole.png")
 
