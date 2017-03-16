@@ -56,38 +56,52 @@ class Env(object):
         1 : move right
         0 : move left
         return :
-            reward 
-            1 : game terminate win
-            -1 : game terminate lose
-            0 : continue game 
+            new_state:
+                new_position 
+            reward :
+                1 : game terminate win
+                0 : otherwise 
+            done : 
+                True : done 
+                False : Not done
         '''
         if control==1: 
             self.pose += 1
             if self.pose == self.steps:
-                return 1
-            return 0
+                done = True 
+                reward = 1
+                new_state = self.pose
+                return new_state, reward, done
+            
+            done = False
+            reward = 0
+            new_state = self.pose
+            return new_state, reward, done
         elif control==0:
             self.pose -=1
             if self.pose == -1:
-                return -1
-            return 0
+                done = True
+                reward = 0
+                new_state = self.pose
+                return new_state, reward, done
+            done = False
+            reward = 0
+            new_state = self.pose
+            return new_state, reward, done
+           
         else :
             print("Wrong control : {}".format(control))
-            return 0
+            done = False
+            reward = 0
+            new_state = self.pose
+            return new_state, reward, done
 
 game = Env(5);
-while True:
+done = False
+while not done:
     control = get()
     if control==-1:
         break
-    reward = game.move(control)
+    new_state, reward,done = game.move(control)
     game.print_state()
-    print("Reward : {}".format(reward))
-    if reward == 1:
-        print("Game win")
-        break;
-    if reward == -1:
-        print("Game lose")
-        break;
-   
-
+    print("new_state, reward, done : {}, {}, {}".format(new_state, reward))
