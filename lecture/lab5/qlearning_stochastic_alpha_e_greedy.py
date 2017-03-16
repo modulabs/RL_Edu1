@@ -5,13 +5,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 import itertools
+if "../../" not in sys.path:
+  sys.path.append("../../")
 from lib import plotting
 import os
-
 def qlearning_alpha_e_greedy(env, n_episodes=2000, gamma=0.99, alpha=0.85, best_enabled=False):
     nS = env.observation_space.n
     nA = env.action_space.n
-    print("Q space initialized: {} x {}".format(nS, nA))
 
     if best_enabled:
         # record your best-tuned hyperparams here
@@ -19,13 +19,16 @@ def qlearning_alpha_e_greedy(env, n_episodes=2000, gamma=0.99, alpha=0.85, best_
         np.random.seed(0)
         alpha = 0.05
         gamma = 0.99
-        epsilon_decay = 0.85
+        epsilon_decay = 0.95
         e = 1.0
 
     Q = np.zeros([nS, nA])
-    # policy: pi(state) -> prob. distribution of actions
     policy = make_decay_e_greedy_policy(Q, nA)
-    reward_per_episode = np.zeros(n_episodes)
+
+    # Keeps track of useful statistics
+    stats = plotting.EpisodeStats(
+        episode_lengths=np.zeros(n_episodes),
+        episode_rewards=np.zeros(n_episodes))
 
     for i in range(n_episodes):
         # useful for debuggin
@@ -40,7 +43,7 @@ def qlearning_alpha_e_greedy(env, n_episodes=2000, gamma=0.99, alpha=0.85, best_
         else:
             e = 1.0 /((i/10) + 1.0)
 
-        while not done:
+        for t in itertools.count():
             # Choose action by decaying e-greedy
             probs = policy(s, e)
             a = np.random.choice(np.arange(nA), p=probs)
@@ -59,9 +62,14 @@ def qlearning_alpha_e_greedy(env, n_episodes=2000, gamma=0.99, alpha=0.85, best_
             s = next_s
             total_reward += r
 
+            if done:
+                break
 
-        reward_per_episode[i] = total_reward
-    return Q, reward_per_episode
+        # Update statistics
+        stats.episode_rewards[i] += total_reward
+        stats.episode_lengths[i] = t
+
+    return Q, stats
 
 def make_decay_e_greedy_policy(Q, nA):
     def policy_fn(state, epsilon):
@@ -93,25 +101,22 @@ def log_episode(i_epi, n_epi):
         sys.stdout.flush()
 
 
-def is_solved(stats):
+def is_solved(stats, target, interval):
     """
     checks if openai's criteria has been met
     """
-    TARGET_AVG_REWARD = 0.78
-    TARGET_EPISODE_INTERVAL = 100
-
     # FrozenLake-v0 is considered "solved" when the agent
     # obtains an average reward of at least 0.78 over 100
     # consecutive episodes.
+    avg_reward = np.sum(stats.episode_rewards)/len(stats.episode_rewards)
+    print("Average reward : {}".format(avg_reward))
 
     def moving_avg(x, n=100):
         return np.convolve(x, np.ones((n,))/n, mode='valid')
 
-    ma = moving_avg(stats, TARGET_EPISODE_INTERVAL)
-    print(ma)
-    peaks = np.where(ma > TARGET_AVG_REWARD)[0]
+    ma = moving_avg(stats.episode_rewards, interval)
+    peaks = np.where(ma > target)[0]
     if len(peaks) > 0:
-        print(peaks)
         print("solved after {} episodes".format(peaks[0]))
         return True
     else:
@@ -119,27 +124,14 @@ def is_solved(stats):
         return False
 
 
-def visualize(Q, stats, output_title="output.png"):
-    print("Success rate : {}".format(np.sum(stats)/len(stats)))
-    print("Final Q-Table Values")
-    print(Q)
-    plt.figure(figsize=(8,12))
-    plt.title("Reward_per_episode")
-    plt.plot(stats)
-    plt.xlabel("Episode")
-    plt.ylabel("Reward")
-    plt.savefig(output_title)
-
 if __name__ == "__main__":
-
+    TARGET_AVG_REWARD = 0.78
+    TARGET_EPISODE_INTERVAL = 100
     env = gym.make('FrozenLake-v0')
     env = wrappers.Monitor(env, '/tmp/frozenlake-experiment-1', force=True)
     Q, stats = qlearning_alpha_e_greedy(env, best_enabled=True)
     env.close()
 
-    if is_solved(stats):
+    if is_solved(stats, TARGET_AVG_REWARD, TARGET_EPISODE_INTERVAL):
         OPENAI_API_KEY = os.environ['OPENAI_API_KEY']
         gym.upload('/tmp/frozenlake-experiment-1', api_key=OPENAI_API_KEY)
-
-    visualize(Q, stats, "qlearning_e_greedy.png")
-

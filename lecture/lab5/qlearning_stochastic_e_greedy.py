@@ -5,6 +5,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 import itertools
+if "../../" not in sys.path:
+  sys.path.append("../../")
+
 from lib import plotting
 
 def qlearning_e_greedy(env, n_episodes=2000, gamma=0.95):
@@ -65,21 +68,9 @@ def make_decay_e_greedy_policy(Q, nA):
         return A
     return policy_fn
 
-
-def visualize(Q, stats, output_title="output.png"):
-    success_rate = np.sum(stats.episode_rewards)/len(stats.episode_rewards)
-    print("Success rate : {}".format(success_rate))
-    print("Final Q-Table Values")
-    print(Q)
-    plt.figure(figsize=(8,12))
-    plt.title("Reward_per_episode")
-    plt.plot(stats.episode_rewards)
-    plt.xlabel("Episode")
-    plt.ylabel("Reward")
-    plt.savefig(output_title)
-
 if __name__ == "__main__":
     env = gym.make('FrozenLake-v0')
     Q, stats = qlearning_e_greedy(env)
-    visualize(Q, stats, "qlearning_e_greedy.png")
+    avg_reward = np.sum(stats.episode_rewards)/len(stats.episode_rewards)
+    print("Average reward : {}".format(avg_reward))
 

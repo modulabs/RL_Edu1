@@ -61,8 +61,6 @@ def plot_value_function(V, title="Value Function"):
 
 
 def plot_episode_stats(stats, smoothing_window=100, noshow=False, goal=None):
-    avg_reward = np.sum(stats.episode_rewards)/len(stats.episode_rewards)
-    print("Average reward : {}".format(avg_reward))
     fig0 = plt.figure(figsize=(10, 5))
     plt.title("Reward over episode")
     plt.plot(stats.episode_rewards)

@@ -4,6 +4,10 @@ import sys
 import numpy as np
 from matplotlib import pyplot as plt
 import matplotlib
+
+if "../../" not in sys.path:
+  sys.path.append("../../")
+
 from lib import plotting
 import os
 import itertools
@@ -81,7 +85,7 @@ def modify_reward(reward, done):
     if done and reward == 0:
         return -100.0
     elif done:
-        return 50.0
+        return 100.0
     else:
         return -1.0
 
@@ -92,22 +96,21 @@ def log_episode(i_epi, n_epi):
         sys.stdout.flush()
 
 
-def is_solved(stats):
+def is_solved(stats, target, interval):
     """
     checks if openai's criteria has been met
     """
-    TARGET_AVG_REWARD = 0.78
-    TARGET_EPISODE_INTERVAL = 100
-
     # FrozenLake-v0 is considered "solved" when the agent
     # obtains an average reward of at least 0.78 over 100
     # consecutive episodes.
+    avg_reward = np.sum(stats.episode_rewards)/len(stats.episode_rewards)
+    print("Average reward : {}".format(avg_reward))
 
     def moving_avg(x, n=100):
         return np.convolve(x, np.ones((n,))/n, mode='valid')
 
-    ma = moving_avg(stats.episode_rewards, TARGET_EPISODE_INTERVAL)
-    peaks = np.where(ma > TARGET_AVG_REWARD)[0]
+    ma = moving_avg(stats.episode_rewards, interval)
+    peaks = np.where(ma > target)[0]
     if len(peaks) > 0:
         print("solved after {} episodes".format(peaks[0]))
         return True
@@ -115,30 +118,16 @@ def is_solved(stats):
         print("did not pass the openai criteria")
         return False
 
-
-
-def visualize(Q, stats, output_title="output.png"):
-    success_rate = np.sum(stats.episode_rewards)/len(stats.episode_rewards)
-    print("Success rate : {}".format(success_rate))
-    print("Final Q-Table Values")
-    print(Q)
-    plt.figure(figsize=(8,12))
-    plt.title("Reward_per_episode")
-    plt.plot(stats.episode_rewards)
-    plt.xlabel("Episode")
-    plt.ylabel("Reward")
-    plt.savefig(output_title)
-
-
 if __name__ == "__main__":
+    TARGET_AVG_REWARD = 0.78
+    TARGET_EPISODE_INTERVAL = 100
+
     env = gym.make('FrozenLake-v0')
     env = wrappers.Monitor(env, '/tmp/frozenlake-experiment-0', force=True)
     Q, stats = qlearning_alpha_noise(env, best_enabled=True)
 
     env.close()
-    if is_solved(stats):
+
+    if is_solved(stats, TARGET_AVG_REWARD, TARGET_EPISODE_INTERVAL):
         OPENAI_API_KEY = os.environ['OPENAI_API_KEY']
         gym.upload('/tmp/frozenlake-experiment-0', api_key=OPENAI_API_KEY)
-
-    visualize(Q, stats, "qlearning_alpha_e_greedy.png")
-

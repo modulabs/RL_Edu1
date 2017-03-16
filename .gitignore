@@ -39,3 +39,4 @@ Thumbs.db
 # Custom
 *.png
 **/*.png
+**/.ipynb_checkpoints
