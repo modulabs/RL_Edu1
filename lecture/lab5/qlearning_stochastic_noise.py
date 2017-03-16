@@ -4,6 +4,8 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
+import itertools
+from lib import plotting
 
 def qlearning_noise(env, n_episodes=2000, gamma=0.95):
     print("Q space initialized: {} x {}".format(env.nS, env.nA))
@@ -11,7 +13,11 @@ def qlearning_noise(env, n_episodes=2000, gamma=0.95):
     Q = np.zeros([env.nS, env.nA])
     # policy: pi(state) -> prob. distribution of actions
     policy = make_noisy_policy(Q, env.nA)
-    reward_per_episode = np.zeros(n_episodes)
+
+    # Keeps track of useful statistics
+    stats = plotting.EpisodeStats(
+        episode_lengths=np.zeros(n_episodes),
+        episode_rewards=np.zeros(n_episodes))
 
     for i in range(n_episodes):
         # useful for debugging
@@ -23,7 +29,7 @@ def qlearning_noise(env, n_episodes=2000, gamma=0.95):
         done = False
         total_reward = 0
 
-        while not done:
+        for t in itertools.count():
             # Choose action by noisy probs
             probs = policy(s, i)
             a = np.random.choice(np.arange(env.nA), p=probs)
@@ -36,9 +42,14 @@ def qlearning_noise(env, n_episodes=2000, gamma=0.95):
 
             s = next_s
             total_reward += r
+            if done:
+                break
 
-        reward_per_episode[i] = total_reward
-    return Q, reward_per_episode
+        # Update statistics
+        stats.episode_rewards[i] += total_reward
+        stats.episode_lengths[i] = t
+
+    return Q, stats
 
 def make_noisy_policy(Q, nA):
     def policy_fn(state, episode_i):
@@ -53,25 +64,18 @@ def make_noisy_policy(Q, nA):
 
 
 def visualize(Q, stats, output_title="output.png"):
-    print("Success rate : {}".format(np.sum(stats)/len(stats)))
+    success_rate = np.sum(stats.episode_rewards)/len(stats.episode_rewards)
+    print("Success rate : {}".format(success_rate))
     print("Final Q-Table Values")
     print(Q)
     plt.figure(figsize=(8,12))
     plt.title("Reward_per_episode")
-    plt.plot(stats)
+    plt.plot(stats.episode_rewards)
     plt.xlabel("Episode")
     plt.ylabel("Reward")
     plt.savefig(output_title)
 
 if __name__ == "__main__":
-    # compare the score between v0 and v3
-    # from gym.envs.registration import register
-    # register(
-    #         id = 'FrozenLake-v3',
-    #         entry_point = 'gym.envs.toy_text:FrozenLakeEnv',
-    #         kwargs = {'map_name' : '4x4', 'is_slippery':False}
-    # )
-    # env = gym.make('FrozenLake-v3')
     env = gym.make('FrozenLake-v0')
     Q, stats = qlearning_noise(env)
     visualize(Q, stats, "qlearning_noise.png")

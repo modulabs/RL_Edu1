@@ -60,22 +60,32 @@ def plot_value_function(V, title="Value Function"):
 
 
 
-def plot_episode_stats(stats, smoothing_window=10, noshow=False):
-    # Plot the episode length over time
-    fig1 = plt.figure(figsize=(10,5))
-    plt.plot(stats.episode_lengths)
+def plot_episode_stats(stats, smoothing_window=100, noshow=False, goal=None):
+    avg_reward = np.sum(stats.episode_rewards)/len(stats.episode_rewards)
+    print("Average reward : {}".format(avg_reward))
+    fig0 = plt.figure(figsize=(10, 5))
+    plt.title("Reward over episode")
+    plt.plot(stats.episode_rewards)
     plt.xlabel("Episode")
-    plt.ylabel("Episode Length")
-    plt.title("Episode Length over Time")
-    if noshow:
-        plt.close(fig1)
-    else:
-        plt.show(fig1)
+    plt.ylabel("Reward")
+
+    # Plot the episode length over time
+    # fig1 = plt.figure(figsize=(10,5))
+    # plt.plot(stats.episode_lengths)
+    # plt.xlabel("Episode")
+    # plt.ylabel("Episode Length")
+    # plt.title("Episode Length over Time")
+    # if noshow:
+    #     plt.close(fig1)
+    # else:
+    #     plt.show(fig1)
 
     # Plot the episode reward over time
     fig2 = plt.figure(figsize=(10,5))
     rewards_smoothed = pd.Series(stats.episode_rewards).rolling(smoothing_window, min_periods=smoothing_window).mean()
     plt.plot(rewards_smoothed)
+    if goal:
+        plt.axhline(y=goal)
     plt.xlabel("Episode")
     plt.ylabel("Episode Reward (Smoothed)")
     plt.title("Episode Reward over Time (Smoothed over window size {})".format(smoothing_window))
@@ -95,5 +105,5 @@ def plot_episode_stats(stats, smoothing_window=10, noshow=False):
     else:
         plt.show(fig3)
 
-    return fig1, fig2, fig3
+    return fig0, fig2, fig3
 
