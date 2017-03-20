@@ -5,7 +5,6 @@ from gym.envs.registration import register
 import random
 import matplotlib.pyplot as plt
 import matplotlib
-import random as pr
 
 
 def rargmax(vector):
@@ -18,12 +17,6 @@ def rargmax(vector):
     m = np.max(vector)
     indices = np.transpose(np.nonzero(vector == m)[0])#Get every max indices
     return indices[np.random.randint(len(indices))]#return one of the value
-
-    #Sungkim's code
-    #m = np.amax(vector)
-    #indices = np.nonzero(vector == m)[0]
-    #return pr.choice(indices)
-
 
 #Env setting
 register(
