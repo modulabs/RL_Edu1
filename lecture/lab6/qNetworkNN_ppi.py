@@ -12,7 +12,7 @@ import os
 import tensorflow as tf
 
 
-def qNetwork(env, n_episodes=3000, gamma=0.99, alpha=0.85, best_enabled=False, log_by_step=False):
+def qNetwork(env, n_episodes=3000, gamma=0.99, alpha=0.85, best_enabled=False, log_by_step=False, network_type='LR'):
     nS = env.observation_space.n
     nA = env.action_space.n
     hidden_size = 30
@@ -32,12 +32,16 @@ def qNetwork(env, n_episodes=3000, gamma=0.99, alpha=0.85, best_enabled=False, l
     X = tf.placeholder(shape=[1, nS], dtype=tf.float32)
     Y = tf.placeholder(shape=[1, nA], dtype=tf.float32)
 
+    if network_type == 'NN':
+        W1 = tf.get_variable("W1", shape=[nS, hidden_size], initializer=tf.contrib.layers.xavier_initializer())
+        Z1 = tf.matmul(X, W1)
+        Z1 = tf.nn.tanh(Z1)
+        W2 = tf.get_variable("W2", shape=[hidden_size, nA], initializer=tf.contrib.layers.xavier_initializer())
+        Qpred = tf.matmul(Z1, W2)
+    else:       # network_type == 'LR':  (Logistic Regression)
+        W = tf.Variable(tf.random_uniform([nS, nA], 0, 0.01))
+        Qpred = tf.matmul(X, W)
 
-    W1 = tf.get_variable("W1", shape=[nS, hidden_size], initializer=tf.contrib.layers.xavier_initializer())
-    Z1 = tf.matmul(X, W1)
-    Z1 = tf.nn.tanh(Z1)
-    W2 = tf.get_variable("W2", shape=[hidden_size, nA], initializer=tf.contrib.layers.xavier_initializer())
-    Qpred = tf.matmul(Z1, W2)
     loss = tf.reduce_sum(tf.square(Y - Qpred))
     train = tf.train.GradientDescentOptimizer(learning_rate=alpha).minimize(loss)
 
@@ -163,7 +167,14 @@ if __name__ == "__main__":
         #OPENAI_API_KEY = os.environ['OPENAI_API_KEY']
         #gym.upload('/tmp/frozenlake-experiment-1', api_key=OPENAI_API_KEY)
 
+
+'''  [LR]
+Average reward : 0.6243333333333333
+solved after 873 episodes
+SOLVED!!!
 '''
+
+'''  [NN]
 Average reward : 0.457
 solved after 1242 episodes
 SOLVED!!!

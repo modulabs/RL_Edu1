@@ -12,7 +12,7 @@ import os
 import tensorflow as tf
 
 
-def double_qNetwork(env, n_episodes=3000, gamma=0.99, alpha=0.85, best_enabled=False, log_by_step=False):
+def double_qNetwork(env, n_episodes=3000, gamma=0.99, alpha=0.85, best_enabled=False, log_by_step=False, network_type='LR'):
     nS = env.observation_space.n
     nA = env.action_space.n
     hidden_size = 30
@@ -32,21 +32,27 @@ def double_qNetwork(env, n_episodes=3000, gamma=0.99, alpha=0.85, best_enabled=F
     X = tf.placeholder(shape=[1, nS], dtype=tf.float32)
     Y = tf.placeholder(shape=[1, nA], dtype=tf.float32)
 
+    if network_type == 'NN':
+        W1_1 = tf.get_variable("W1_1", shape=[nS, hidden_size], initializer=tf.contrib.layers.xavier_initializer())
+        Z1_1 = tf.matmul(X, W1_1)
+        Z1_1 = tf.nn.tanh(Z1_1)
+        W2_1 = tf.get_variable("W2_1", shape=[hidden_size, nA], initializer=tf.contrib.layers.xavier_initializer())
+        Qpred_1 = tf.matmul(Z1_1, W2_1)
 
-    W1_1 = tf.get_variable("W1_1", shape=[nS, hidden_size], initializer=tf.contrib.layers.xavier_initializer())
-    Z1_1 = tf.matmul(X, W1_1)
-    Z1_1 = tf.nn.tanh(Z1_1)
-    W2_1 = tf.get_variable("W2_1", shape=[hidden_size, nA], initializer=tf.contrib.layers.xavier_initializer())
-    Qpred_1 = tf.matmul(Z1_1, W2_1)
+        W1_2 = tf.get_variable("W1_2", shape=[nS, hidden_size], initializer=tf.contrib.layers.xavier_initializer())
+        Z1_2 = tf.matmul(X, W1_2)
+        Z1_2 = tf.nn.tanh(Z1_2)
+        W2_2 = tf.get_variable("W2_2", shape=[hidden_size, nA], initializer=tf.contrib.layers.xavier_initializer())
+        Qpred_2 = tf.matmul(Z1_2, W2_2)
+
+    else:  # network_type == 'LR':  (Logistic Regression)
+        W_1 = tf.Variable(tf.random_uniform([nS, nA], 0, 0.01))
+        W_2 = tf.Variable(tf.random_uniform([nS, nA], 0, 0.01))
+        Qpred_1 = tf.matmul(X, W_1)
+        Qpred_2 = tf.matmul(X, W_2)
+
     loss_1 = tf.reduce_sum(tf.square(Y - Qpred_1))
     train_1 = tf.train.GradientDescentOptimizer(learning_rate=alpha).minimize(loss_1)
-
-
-    W1_2 = tf.get_variable("W1_2", shape=[nS, hidden_size], initializer=tf.contrib.layers.xavier_initializer())
-    Z1_2 = tf.matmul(X, W1_2)
-    Z1_2 = tf.nn.tanh(Z1_2)
-    W2_2 = tf.get_variable("W2_2", shape=[hidden_size, nA], initializer=tf.contrib.layers.xavier_initializer())
-    Qpred_2 = tf.matmul(Z1_2, W2_2)
     loss_2 = tf.reduce_sum(tf.square(Y - Qpred_2))
     train_2 = tf.train.GradientDescentOptimizer(learning_rate=alpha).minimize(loss_2)
 
@@ -187,8 +193,12 @@ if __name__ == "__main__":
         #OPENAI_API_KEY = os.environ['OPENAI_API_KEY']
         #gym.upload('/tmp/frozenlake-experiment-1', api_key=OPENAI_API_KEY)
 
-
+'''  [LR]
+Average reward : 0.475
+did not pass the openai criteria
 '''
+
+'''  [NN]
 Average reward : 0.43666666666666665
 solved after 2802 episodes
 SOLVED!!!
