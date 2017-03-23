@@ -1,12 +1,15 @@
 import numpy as np
 import tensorflow as tf
-
 import gym
+import matplotlib.pyplot as plt
+
 
 env = gym.make('CartPole-v0')
 
 
-learning_rate = 1e-1
+#learning_rate = 1e-2 #평균 24.678
+learning_rate = 1e-1 #평균 counts per episode: 28.1475
+
 input_size = env.observation_space.shape[0]
 output_size = env.action_space.n
 
@@ -23,6 +26,9 @@ num_episodes = 2000
 dis = .9
 
 rList = []
+subRewardList = []
+avgRewardList = []
+
 
 init = tf.global_variables_initializer()
 
@@ -59,12 +65,23 @@ for i in range(num_episodes):
 
         rAll += reward
         s = s1
-
-    print(i, ':reward=', rAll )
+    subRewardList.append(rAll)
     rList.append(rAll)
+
+    if (i+1) % 100 == 0 :
+        avg = sum(subRewardList)/100
+        avgRewardList.append(avg)
+        print(i+1, ': avg =', avg)
+        subRewardList = []
 
 #counts per episode: 26.7965
 print('counts per episode:', str(sum(rList) / num_episodes ) )
+
+plt.ylim(0,300)
+plt.bar(range(len(avgRewardList)), avgRewardList, color='blue', bottom=0)
+
+plt.show()
+
 
 '''
 count = 0
