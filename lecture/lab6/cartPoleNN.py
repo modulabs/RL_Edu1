@@ -1,7 +1,8 @@
 import numpy as np
 import tensorflow as tf
-
 import gym
+import matplotlib.pyplot as plt
+
 
 env = gym.make('CartPole-v0')
 
@@ -10,7 +11,8 @@ layer1_size = 10
 layer2_size = 10
 
 output_size = env.action_space.n
-learning_rate = 1e-2
+#learning_rate = 1e-1 # counts per episode: 9.5085
+learning_rate = 1e-2 # counts per episode: 95.3945
 
 X = tf.placeholder(shape=[1,input_size],dtype=tf.float32)
 #W1 = tf.Variable(tf.random_uniform([input_size,layer1_size],-1,1))
@@ -43,6 +45,8 @@ dis = .9
 num_episodes = 2000
 
 rList = []
+subRewardList = []
+avgRewardList = []
 
 init = tf.global_variables_initializer()
 
@@ -81,9 +85,14 @@ for i in range(num_episodes):
         s = s1
 
 
-    print(i,' episode =', rAll)
-
+    subRewardList.append(rAll)
     rList.append(rAll)
+
+    if (i+1) % 100 == 0 :
+        avg = sum(subRewardList)/100
+        avgRewardList.append(avg)
+        print(i+1, ': avg =', avg)
+        subRewardList = []
 
 #layer2: learning rate = 0.01, sigmoid, counts per episode: 36.436
 #layer2: learning rate = 0.01, tanh, counts per episode: ?
@@ -93,6 +102,11 @@ for i in range(num_episodes):
 #layer3: learning rate = 0.001, counts per episode: 96.272
 
 print('counts per episode:', str(sum(rList) / num_episodes ) )
+
+plt.ylim(0,300)
+plt.bar(range(len(avgRewardList)), avgRewardList, color='blue', bottom=0)
+
+plt.show()
 
 
 '''
