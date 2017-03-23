@@ -10,7 +10,7 @@ import matplotlib
 def rargmax(vector):
     '''
     input :
-        1D vector 
+        1D vector
     return :
         one of the max indices
     '''
@@ -50,18 +50,21 @@ for i in range(n_episodes):
     while not done:
         #Choose action by e-greedy
         #Add random noise
-        action = rargmax(Q[state,:] + np.random.randn()/(i+1))
-        
+        # Q[state,:] == [0.3, 0.5, 0.1, 0.1] - 1
+        # noise = np.random.randn(1, env.action_space.n)/(i+1)
+        # noise = [0, 1] ==>> [[0.3, 0.5, 0.1, 0.1]] -2
+        action = rargmax(Q[state,:] + np.random.randn(1, env.action_space.n)/(i+1))
+
         #Get new state and reward from environment
         new_state, reward, done, info =env.step(action)
-        
+
         #Update Q-Table with new knowledge using learning rate
         Q[state, action] = reward + discount_rate*np.max(Q[new_state,:])
         state = new_state
         total_reward+=reward
-    
+
     reward_per_episode[i]=total_reward
-    
+
 print("Success rate : "+str(np.sum(reward_per_episode)/n_episodes))
 print("Final Q-Table Values")
 print("LEFT = 0, DOWN = 1, RIGHT = 2, UP = 3")

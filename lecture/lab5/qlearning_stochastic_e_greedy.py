@@ -75,4 +75,3 @@ if __name__ == "__main__":
     Q, stats = qlearning_e_greedy(env)
     avg_reward = np.sum(stats.episode_rewards)/len(stats.episode_rewards)
     print("Average reward : {}".format(avg_reward))
-
