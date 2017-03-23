@@ -12,10 +12,12 @@ import os
 import tensorflow as tf
 
 
-def double_qNetwork(env, n_episodes=3000, gamma=0.99, alpha=0.85, best_enabled=False, log_by_step=False, network_type='LR'):
+def double_qNetwork(env, n_episodes=3000, gamma=0.99, alpha=0.85, best_enabled=False, log_by_step=False, result_per_episode=100, network_type='LR'):
     nS = env.observation_space.n
     nA = env.action_space.n
     hidden_size = 30
+    subRewardList = []
+    avgRewardList = []
 
     def one_hot(x):
         return np.identity(nS)[x:x + 1]
@@ -24,7 +26,7 @@ def double_qNetwork(env, n_episodes=3000, gamma=0.99, alpha=0.85, best_enabled=F
         # record your best-tuned hyperparams here
         env.seed(0)
         np.random.seed(0)
-        alpha = 0.005
+        alpha = 0.003
         gamma = 0.99
         epsilon_decay = 0.95
         e = 1.0
@@ -130,13 +132,19 @@ def double_qNetwork(env, n_episodes=3000, gamma=0.99, alpha=0.85, best_enabled=F
                 if done:
                     break
 
-            print(i, ' episode =', total_reward, ', count =', count)
+            subRewardList.append(total_reward)
+
+            if (i + 1) % result_per_episode == 0:
+                avg = sum(subRewardList) / result_per_episode
+                avgRewardList.append(avg)
+                print(i + 1, ' episode =', total_reward, ', avg =', avg)
+                subRewardList = []
 
             # Update statistics
             stats.episode_rewards[i] += total_reward
             stats.episode_lengths[i] = t
 
-    return stats
+    return stats, subRewardList, avgRewardList
 
 
 def modify_reward(reward, done):
@@ -183,15 +191,19 @@ if __name__ == "__main__":
     TARGET_EPISODE_INTERVAL = 100
     env = gym.make('FrozenLake-v0')
     env = wrappers.Monitor(env, '/tmp/frozenlake-experiment-1', force=True)
-    stats = double_qNetwork(env, best_enabled=True, log_by_step=False)
-    #Q1, Q2, stats = double_qlearning(env, n_episodes=10, best_enabled=True, log_by_step=True)
-    #print(np.concatenate((Q1, Q2), axis=1))
+    stats, subRewardList, avgRewardList = double_qNetwork(env, best_enabled=True, log_by_step=False, network_type='NN')
+
     env.close()
 
     if is_solved(stats, TARGET_AVG_REWARD, TARGET_EPISODE_INTERVAL):
         print('SOLVED!!!')
         #OPENAI_API_KEY = os.environ['OPENAI_API_KEY']
         #gym.upload('/tmp/frozenlake-experiment-1', api_key=OPENAI_API_KEY)
+
+    plt.ylim(0, 1)
+    plt.bar(range(len(avgRewardList)), avgRewardList, color='blue', bottom=0)
+
+    plt.show()
 
 '''  [LR]
 Average reward : 0.475
