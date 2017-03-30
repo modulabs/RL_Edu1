@@ -10,4 +10,7 @@ class GamePlay(metaclass=ABCMeta):
     def gameSetup(self): pass
 
     @abstractmethod
-    def runBotPlay(self): pass
+    def trainAgent(self): pass
+
+    @abstractmethod
+    def runGamePlay(self): pass

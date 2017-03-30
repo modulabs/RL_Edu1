@@ -10,10 +10,19 @@ class Algorithm(metaclass=ABCMeta):
     def initNetwork(self): pass
 
     @abstractmethod
-    def featurize(self): pass
-
-    @abstractmethod
     def predict(self): pass
 
     @abstractmethod
     def update(self): pass
+
+    @abstractmethod
+    def initTraining(self): pass
+
+    @abstractmethod
+    def getNextAction(self, state, mode): pass
+
+    @abstractmethod
+    def stepTrain(self): pass
+
+    @abstractmethod
+    def episodeTrain(self): pass
