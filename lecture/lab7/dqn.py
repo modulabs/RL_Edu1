@@ -31,6 +31,9 @@ class dqn(algorithm.Algorithm):
         tf.global_variables_initializer().run()
         self.network_initialized = True
 
+        if self.version == '2015':
+            self.session.run(self.copy_ops)
+
 
     def setDefaultHyperparam(self):
         hyperparams = {}
@@ -66,6 +69,8 @@ class dqn(algorithm.Algorithm):
             self.scopeName = scopeName
             self.hyperparams = hyperparam
             self.gameparams = gameparam
+            self.mainDQN = None
+            self.targetDQN = None
 
         def buildNetwork(self):
             with tf.variable_scope(self.scopeName):
@@ -87,18 +92,27 @@ class dqn(algorithm.Algorithm):
                                          initializer=tf.contrib.layers.xavier_initializer())
                 self._QPred = tf.matmul(Lprev, W_last)
 
-        def placeHolderX(self):
-            return self._X
+        #def placeHolderX(self):
+        #    return self._X
 
-        def qPrediction(self):
-            return self._QPred
+        #def qPrediction(self):
+        #    return self._QPred
+
+        #def scopeName(self):
+        #    return self.scopeName
 
 
 
 
     def buildNetwork(self):
-        self.mainDQN = self.dqnNetwork(self.session, self.version, scopeName="mainDQN", gameparam=self.gameparams, hyperparam=self.hyperparams)
+        self.mainDQN = self.dqnNetwork(self.session, self.version, scopeName="mainDQN", gameparam=self.gameparams,
+                                       hyperparam=self.hyperparams)
         self.mainDQN.buildNetwork()
+
+        if self.version == '2015':
+            self.targetDQN = self.dqnNetwork(self.session, self.version, scopeName="targetDQN", gameparam=self.gameparams,
+                                           hyperparam=self.hyperparams)
+            self.targetDQN.buildNetwork()
         '''with tf.variable_scope("mainDQN"):
             self._X = tf.placeholder(dtype=tf.float32, shape=[None, self.gameparams['input_size']], name="input_X")
 
@@ -121,23 +135,34 @@ class dqn(algorithm.Algorithm):
         self._Y = tf.placeholder(dtype=tf.float32, shape=[None, self.gameparams['output_size']], name="output_Y")
 
         #self._loss = tf.reduce_mean(tf.square(self._Y-self._QPred))
-        self._loss = tf.reduce_mean(tf.square(self._Y - self.mainDQN.qPrediction()))
+        self._loss = tf.reduce_mean(tf.square(self._Y - self.mainDQN._QPred))
 
         learning_rate = math.pow(10, self.hyperparams['learning_rate']['value'])
         print('learning_rate: ', learning_rate)
         self._train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(self._loss)
 
+        if self.version == '2015':
+            self.copy_ops = self.get_copy_var_ops(dest_scope_name=self.targetDQN.scopeName, src_scope_name=self.mainDQN.scopeName)
 
-    def predict(self, state):
+
+    def predict(self, state, net="main"):
         #print("input_size {}".format(self.gameparams['input_size']))
         x = np.reshape(state, [1, self.gameparams['input_size']])
         #return self.session.run(self._QPred, feed_dict={self._X: x})
-        return self.session.run(self.mainDQN.qPrediction(), feed_dict={self.mainDQN.placeHolderX(): x})
+
+        #dqnNetwork = None
+
+        if net=="main":
+            dqnNetwork = self.mainDQN
+        else:
+            dqnNetwork = self.targetDQN
+
+        return self.session.run(dqnNetwork._QPred, feed_dict={dqnNetwork._X: x})
 
 
     def update(self, x_stack, y_stack):
         #return self.session.run([self._loss, self._train], feed_dict={self._X: x_stack, self._Y: y_stack})
-        return self.session.run([self._loss, self._train], feed_dict={self.mainDQN.placeHolderX(): x_stack, self._Y: y_stack})
+        return self.session.run([self._loss, self._train], feed_dict={self.mainDQN._X: x_stack, self._Y: y_stack})
 
 
     def getNextAction(self, state, mode):
@@ -169,6 +194,9 @@ class dqn(algorithm.Algorithm):
                 minibatch = random.sample(self.replay_buffer, 10)
                 loss, _ = self.replay_memory_batch(minibatch)
 
+            if self.version == '2015':
+                self.session.run(self.copy_ops)
+
             return loss
 
         return 0
@@ -188,26 +216,30 @@ class dqn(algorithm.Algorithm):
             if done:
                 Q[0, action] = reward
             else:
-                Q[0, action] = reward + self.hyperparams['discount_ratio']['value'] * np.max(self.predict(next_state))
+                if self.version == '2013':
+                    Q[0, action] = reward + self.hyperparams['discount_ratio']['value'] * np.max(
+                        self.predict(next_state, net="main"))
+                else:   # self.version == '2015'
+                    Q[0, action] = reward + self.hyperparams['discount_ratio']['value'] * np.max(
+                        self.predict(next_state, net="target"))
 
         x_stack = np.vstack([x_stack, state])
         y_stack = np.vstack([y_stack, Q])
 
         return self.update(x_stack, y_stack)
 
-    def replay_memory_batch_2015(self, replay_batch):
-        x_stack = np.empty(0).reshape(0, self.gameparams['input_size'])
-        y_stack = np.empty(0).reshape(0, self.gameparams['output_size'])
 
-        for state, action, reward, next_state, done in replay_batch:
-            Q = self.predict(state)
+    def get_copy_var_ops(self, dest_scope_name, src_scope_name):
 
-            if done:
-                Q[0, action] = reward
-            else:
-                Q[0, action] = reward + self.hyperparams['discount_ratio']['value'] * np.max(self.predict(next_state))
+        # Copy variables src_scope to dest_scope
+        op_holder = []
 
-        x_stack = np.vstack([x_stack, state])
-        y_stack = np.vstack([y_stack, Q])
+        src_vars = tf.get_collection(
+            tf.GraphKeys.TRAINABLE_VARIABLES, scope=src_scope_name)
+        dest_vars = tf.get_collection(
+            tf.GraphKeys.TRAINABLE_VARIABLES, scope=dest_scope_name)
 
-        return self.update(x_stack, y_stack)
+        for src_var, dest_var in zip(src_vars, dest_vars):
+            op_holder.append(dest_var.assign(src_var.value()))
+
+        return op_holder

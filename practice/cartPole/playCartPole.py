@@ -149,8 +149,8 @@ class CartPolePlay(gameplay.GamePlay):
 
 if __name__ == "__main__":
 
-    algorithm = 'dqn_2013'
-    #algorithm = 'dqn_2015'
+    #algorithm = 'dqn_2013'
+    algorithm = 'dqn_2015'
     play = CartPolePlay(algorithm)
 
     print("CartPole Algorithm {} Game start".format(algorithm))
