@@ -1,15 +1,12 @@
-import numpy as np
-import tensorflow as tf
-import matplotlib.pyplot as plt
-import sys
 import math
 import random
+import sys
 from collections import deque
 
-if "../../" not in sys.path:
-  sys.path.append("../../")
+import numpy as np
+import tensorflow as tf
 
-from lib import algorithm
+from practice.algorithm import algorithm
 
 
 class dqn(algorithm.Algorithm):
@@ -37,15 +34,18 @@ class dqn(algorithm.Algorithm):
 
     def setDefaultHyperparam(self):
         hyperparams = {}
-        #self.hyperparams['hidden_size_1'] = {'dtype':'integer', 'variable':False, 'value':30, 'minvalue':2, 'maxvalue':1000 }
+
         hyperparams['hidden_layer'] = []
         hyperparams['hidden_layer'].append({'layer_name':'W1',
-                                            'size': {'dtype': 'integer', 'variable': False, 'value': 30, 'minvalue': 2,
+                                            'size': {'dtype': 'integer', 'variable': False, 'value': 20, 'minvalue': 2,
                                                     'maxvalue': 1000} })
         hyperparams['hidden_layer'].append({'layer_name': 'W2',
-                                            'size': {'dtype': 'integer', 'variable': False, 'value': 30, 'minvalue': 2,
+                                            'size': {'dtype': 'integer', 'variable': False, 'value': 20, 'minvalue': 2,
                                                      'maxvalue': 1000}})
-        hyperparams['learning_rate'] = {'dtype':'log10', 'variable':True, 'value':-3, 'minvalue':-7, 'maxvalue':0 }
+        hyperparams['hidden_layer'].append({'layer_name': 'W3',
+                                            'size': {'dtype': 'integer', 'variable': False, 'value': 20, 'minvalue': 2,
+                                                     'maxvalue': 1000}})
+        hyperparams['learning_rate'] = {'dtype':'log10', 'variable':True, 'value':-2.7, 'minvalue':-7, 'maxvalue':0 }
         hyperparams['discount_ratio'] = {'dtype':'float', 'variable':True, 'value':0.9, 'minvalue':0, 'maxvalue':1 }
 
         return hyperparams
@@ -92,17 +92,6 @@ class dqn(algorithm.Algorithm):
                                          initializer=tf.contrib.layers.xavier_initializer())
                 self._QPred = tf.matmul(Lprev, W_last)
 
-        #def placeHolderX(self):
-        #    return self._X
-
-        #def qPrediction(self):
-        #    return self._QPred
-
-        #def scopeName(self):
-        #    return self.scopeName
-
-
-
 
     def buildNetwork(self):
         self.mainDQN = self.dqnNetwork(self.session, self.version, scopeName="mainDQN", gameparam=self.gameparams,
@@ -113,24 +102,6 @@ class dqn(algorithm.Algorithm):
             self.targetDQN = self.dqnNetwork(self.session, self.version, scopeName="targetDQN", gameparam=self.gameparams,
                                            hyperparam=self.hyperparams)
             self.targetDQN.buildNetwork()
-        '''with tf.variable_scope("mainDQN"):
-            self._X = tf.placeholder(dtype=tf.float32, shape=[None, self.gameparams['input_size']], name="input_X")
-
-            Lprev = self._X
-            size_prev = self.gameparams['input_size']
-            for idx in range(len(self.hyperparams['hidden_layer'])):
-                W = tf.get_variable( name=self.hyperparams['hidden_layer'][idx]['layer_name'],
-                                     shape=[size_prev, self.hyperparams['hidden_layer'][idx]['size']['value']],
-                                     initializer=tf.contrib.layers.xavier_initializer())
-                #L = tf.nn.tanh(tf.matmul(Lprev, W))
-                L = tf.nn.relu(tf.matmul(Lprev, W))   # ReLu is much more effective than tanh in dqn.
-                Lprev = L
-                size_prev = self.hyperparams['hidden_layer'][idx]['size']['value']
-
-            W_last = tf.get_variable(name=(self.net_name+'_last'),
-                                shape=[size_prev, self.gameparams['output_size']],
-                                initializer=tf.contrib.layers.xavier_initializer())
-            self._QPred = tf.matmul(Lprev, W_last)'''
 
         self._Y = tf.placeholder(dtype=tf.float32, shape=[None, self.gameparams['output_size']], name="output_Y")
 
@@ -182,7 +153,6 @@ class dqn(algorithm.Algorithm):
 
 
     def stepTrain(self, state, action, reward, next_state, done):
-        #self.train_episode_count += 1
         self.replay_buffer.append((state, action, reward, next_state, done))
         if len(self.replay_buffer) > self.gameparams['replay_size']:
             self.replay_buffer.popleft()

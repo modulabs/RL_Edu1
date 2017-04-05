@@ -1,16 +1,12 @@
-import numpy as np
-import tensorflow as tf
-import gym
-import matplotlib.pyplot as plt
 import sys
 
-if "../../" not in sys.path:
-  sys.path.append("../../")
-from lib import gameplay
+import gym
+import tensorflow as tf
 
-if "../lecture/lab7" not in sys.path:
-  sys.path.append("../lecture/lab7")
-from dqn import dqn
+#if "../../" not in sys.path:
+#  sys.path.append("../../")
+from practice.game import gameplay
+from practice.algorithm.dqn import dqn
 
 
 class CartPolePlay(gameplay.GamePlay):
@@ -35,12 +31,8 @@ class CartPolePlay(gameplay.GamePlay):
         hyperparams = {}
 
         if self.algorithm_name == 'dqn_2013':
-            #hyperparams['input_size'] = self.env.observation_space.shape[0]
-            #hyperparams['output_size'] = self.env.action_space.n
             self.algorithm = dqn(self.session, version='2013', gameparam=self.gameparams, externalHyperparam=hyperparams)
         elif self.algorithm_name == 'dqn_2015':
-            #hyperparams['input_size'] = self.env.observation_space.shape[0]
-            #hyperparams['output_size'] = self.env.action_space.n
             self.algorithm = dqn(self.session, version='2015', gameparam=self.gameparams, externalHyperparam=hyperparams)
         else:   # TODO: add more good algorithms!!
             self.algorithm = None
@@ -97,11 +89,14 @@ class CartPolePlay(gameplay.GamePlay):
                 state = next_state
                 step_count += 1
 
-                if self.isGoodEnough(step_count):
-                    print("Episode: {}, steps: {} [Good Enough]".format(episode, step_count))
-                    return
+                if step_count >= self.gameparams['max_stepPerEdisode']:
+                    break
 
-            print("Episode: {}, steps: {}".format(episode, step_count))
+            if self.isGoodEnough(step_count):
+                print("Episode: {}, steps: {} [Good Enough]".format(episode, step_count))
+                return
+            else:
+                print("Episode: {}, steps: {}".format(episode, step_count))
 
             loss = self.algorithm.episodeTrain()
             if loss > 0:
