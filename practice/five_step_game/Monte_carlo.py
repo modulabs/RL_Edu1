@@ -1,32 +1,5 @@
 import tensorflow as tf
 import numpy as np
-import sys,tty,termios
-
-class _Getch:
-    def __call__(self):
-        fd = sys.stdin.fileno()
-        old_settings = termios.tcgetattr(fd)
-        try:
-            tty.setraw(sys.stdin.fileno())
-            ch = sys.stdin.read(3)
-        finally:
-            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-        return ch
-
-def get():
-    inkey = _Getch()
-    while(1):
-        k=inkey()
-        if k!='':break
-    if k=='\x1b[C':
-        print("right")
-        return 1
-    elif k=='\x1b[D':
-        print("left")
-        return 0
-    else:
-        print("not an arrow key!")
-        return -1
 
 class Env(object):
     def __init__(self, steps = 5):
@@ -34,6 +7,8 @@ class Env(object):
         self.steps = steps
         self.pose = int(steps/2)
         self.print_state()
+    def reset(self):
+        self.pose = int(self.steps/2)
     def print_state(self):
         '''
         L001...00W
@@ -97,11 +72,32 @@ class Env(object):
             return new_state, reward, done
 
 game = Env(5);
-done = False
-while not done:
-    control = get()
-    if control==-1:
-        break
-    new_state, reward,done = game.move(control)
-    game.print_state()
-    print("new_state, reward, done : {}, {}, {}".format(new_state, reward, done))
+control = [0, 1]
+
+Val_func = np.zeros(game.steps)
+state_counter = np.zeros(game.steps)
+
+total_episodes = 10000
+
+for i in range(total_episodes):
+    game.reset()    
+    state_track = []
+    state_track.append(game.pose)
+    done = False
+    while True:
+        control_index = np.random.randint(len(control))
+        new_state, reward, done = game.move(control[control_index])
+        if done == True:
+            for j in range(len(state_track)):
+                state_counter[state_track[j]]+= 1
+                Val_func[state_track[j]]+= reward
+            break
+        else:
+            state_track.append(new_state)
+
+for i in range(game.steps):
+    if state_counter[i] is not 0:
+        Val_func[i] /= state_counter[i]
+
+
+print(Val_func)
