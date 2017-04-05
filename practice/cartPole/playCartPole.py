@@ -20,13 +20,16 @@ class CartPolePlay(gameplay.GamePlay):
         self.session = None
         self.env = None
         self.gameparams = {}
+        self.goodStepCount = 0
+
 
     def gamePlayMain(self):
         with tf.Session() as sess:
             self.session = sess
-            self.gameSetup()
-            self.trainAgent()
-            self.runGamePlay()
+            if self.gameSetup():
+                self.trainAgent()
+                self.runGamePlay()
+
 
     def setAlgorithm(self):
         hyperparams = {}
@@ -34,13 +37,16 @@ class CartPolePlay(gameplay.GamePlay):
         if self.algorithm_name == 'dqn_2013':
             #hyperparams['input_size'] = self.env.observation_space.shape[0]
             #hyperparams['output_size'] = self.env.action_space.n
-            self.algorithm = dqn(self.session, name='dqn', version='2013', gameparam=self.gameparams, externalHyperparam=hyperparams)
+            self.algorithm = dqn(self.session, version='2013', gameparam=self.gameparams, externalHyperparam=hyperparams)
         elif self.algorithm_name == 'dqn_2015':
             #hyperparams['input_size'] = self.env.observation_space.shape[0]
             #hyperparams['output_size'] = self.env.action_space.n
-            self.algorithm = dqn(self.session, name='dqn', version='2015', gameparam=self.gameparams, externalHyperparam=hyperparams)
-        else:
-            pass  # TODO: add more good algorithms!!
+            self.algorithm = dqn(self.session, version='2015', gameparam=self.gameparams, externalHyperparam=hyperparams)
+        else:   # TODO: add more good algorithms!!
+            self.algorithm = None
+
+        return self.algorithm
+
 
     def gameSetup(self):
         self.env = gym.make('CartPole-v0')
@@ -48,12 +54,21 @@ class CartPolePlay(gameplay.GamePlay):
         self.gameparams['max_episode'] = 5000
         self.gameparams['input_size'] = self.env.observation_space.shape[0]
         self.gameparams['output_size'] = self.env.action_space.n
+        self.gameparams['max_stepPerEdisode'] = 200
+        self.gameparams['good_stepPerEdisode'] = 195
+        self.gameparams['goodEnoughCount'] = 100
 
         print("gameSetup input_size {}".format(self.gameparams['input_size']))
         print("gameSetup output_size {}".format(self.gameparams['output_size']))
 
-        self.setAlgorithm()
+        if self.setAlgorithm() is None:
+            print(">>>> Unknown Algorithm selected!!")
+            return False
+
         self.algorithm.initNetwork()
+
+        return True
+
 
     def getNextAction(self, state, mode):
         action = self.algorithm.getNextAction(state, mode)
@@ -62,6 +77,7 @@ class CartPolePlay(gameplay.GamePlay):
 
         return action
 
+
     def trainAgent(self):
         self.algorithm.initTraining()
 
@@ -69,36 +85,53 @@ class CartPolePlay(gameplay.GamePlay):
             state = self.env.reset()
             done = False
             step_count = 0
+            self.algorithm.initEpisode()
 
             while not done:
                 action = self.getNextAction(state, mode='train')
                 next_state, reward, done, _ = self.env.step(action)
-                reward = self.modifyReward(reward, done)
+                reward = self.modifyReward(reward, done, step_count+1)
 
                 self.algorithm.stepTrain(state, action, reward, next_state, done)
 
                 state = next_state
                 step_count += 1
 
-                if step_count > 1000:  #if step_count > 10000: # good enough
+                if self.isGoodEnough(step_count):
                     print("Episode: {}, steps: {} [Good Enough]".format(episode, step_count))
                     return
 
             print("Episode: {}, steps: {}".format(episode, step_count))
 
             loss = self.algorithm.episodeTrain()
-            print(">>>Loss after replay memory: ", loss)
+            if loss > 0:
+                print(">>>Loss after replay memory: ", loss)
 
 
-
-    def modifyReward(self, reward, done):
+    def modifyReward(self, reward, done, step_count):
         if done:
-            return -100
+            if step_count < self.gameparams['max_stepPerEdisode']:
+                return -100
+
+        return reward
+
+
+    def isGoodEnough(self, step_count):
+        #if step_count > 1000:  # if step_count > 10000: # good enough
+        if step_count >= self.gameparams['good_stepPerEdisode']:
+            self.goodStepCount += 1
+
+            if self.goodStepCount >= self.gameparams['goodEnoughCount']:
+                return True
+
         else:
-            return reward
+            self.goodStepCount = 0
+
+        return False
 
 
     def runGamePlay(self, render_play=True):
+        print("###################  GAME  START !!!  ########################")
         state = self.env.reset()
         reward_sum = 0
         done = False
@@ -110,13 +143,15 @@ class CartPolePlay(gameplay.GamePlay):
             reward_sum += reward
 
         print("Total Score: {}".format(reward_sum))
+        print("###################  GAME  OVER !!!  ########################")
 
 
 
 if __name__ == "__main__":
-    print("DQN 2013 Game start")
-    play = CartPolePlay('dqn_2013')
-    #play = CartPolePlay('dqn_2015')
 
-    print("DQN 2013 Game start")
+    algorithm = 'dqn_2013'
+    #algorithm = 'dqn_2015'
+    play = CartPolePlay(algorithm)
+
+    print("CartPole Algorithm {} Game start".format(algorithm))
     play.gamePlayMain()

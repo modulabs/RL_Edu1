@@ -19,6 +19,9 @@ class Algorithm(metaclass=ABCMeta):
     def initTraining(self): pass
 
     @abstractmethod
+    def initEpisode(self): pass
+
+    @abstractmethod
     def getNextAction(self, state, mode): pass
 
     @abstractmethod
