@@ -2,6 +2,18 @@ import tensorflow as tf
 import numpy as np
 import sys,tty,termios
 
+def rargmax(vector):
+    '''
+    input :
+        1D vector 
+    return :
+        one of the max indices
+    '''
+    m = np.max(vector)
+    indices = np.transpose(np.nonzero(vector == m)[0])#Get every max indices
+    return indices[np.random.randint(len(indices))]#return one of the value
+
+
 class _Getch:
     def __call__(self):
         fd = sys.stdin.fileno()
@@ -30,10 +42,32 @@ def get():
 
 class Env(object):
     def __init__(self, steps = 5):
+        # pose : [0, 1, ..., steps-1] 
+            #pose -1 : L
+            #pose steps : W
+        # reward 2D array pose*control
+        
         print("Game start") 
         self.steps = steps
         self.pose = int(steps/2)
+        
+        self.r = np.zeros((self.steps, 2))
+        self.r[self.steps-1][1] = 1
+        
         self.print_state()
+
+    def set_pose(self, pose):
+        if pose >= self.steps or pose<=-1:
+            print("wrong pose")
+            return
+        self.pose = pose
+
+    def reward(self, pose, control):
+        return self.r[pose][control]
+
+    def reset(self):
+        self.set_pose(int(self.steps/2))
+
     def print_state(self):
         '''
         L001...00W
@@ -65,30 +99,14 @@ class Env(object):
                 True : done 
                 False : Not done
         '''
-        if control==1: 
-            self.pose += 1
-            if self.pose == self.steps:
+        if control==1 or control ==0:
+            reward = self.reward(self.pose, control)
+            self.pose += 2*control-1
+            new_state = self.pose
+            done = False
+            if self.pose == self.steps or self.pose==-1:
                 done = True 
-                reward = 1
-                new_state = self.pose
-                return new_state, reward, done
-            
-            done = False
-            reward = 0
-            new_state = self.pose
             return new_state, reward, done
-        elif control==0:
-            self.pose -=1
-            if self.pose == -1:
-                done = True
-                reward = 0
-                new_state = self.pose
-                return new_state, reward, done
-            done = False
-            reward = 0
-            new_state = self.pose
-            return new_state, reward, done
-           
         else :
             print("Wrong control : {}".format(control))
             done = False
@@ -96,12 +114,14 @@ class Env(object):
             new_state = self.pose
             return new_state, reward, done
 
-game = Env(5);
-done = False
-while not done:
-    control = get()
-    if control==-1:
-        break
-    new_state, reward,done = game.move(control)
-    game.print_state()
-    print("new_state, reward, done : {}, {}, {}".format(new_state, reward, done))
+
+if __name__ == "__main__":
+    game = Env(5);
+    done = False
+    while not done:
+        control = get()
+        if control==-1:
+            break
+        new_state, reward,done = game.move(control)
+        game.print_state()
+        print("new_state, reward, done : {}, {}, {}".format(new_state, reward, done))
