@@ -4,6 +4,7 @@
 
  - Introduction : http://www.modulabs.co.kr/RLedu_library/8632  
  - Open Chatting Link : https://open.kakao.com/o/grnJlFp  (click to join)
+ - Open Discussion Link : https://www.jandi.com/landing/#/seed/52RbDtph
 
 
 ### Education Course 1 : Reinforcement Learning: An Introduction (R.Sutton, A.G.Barto)

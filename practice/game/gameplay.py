@@ -10,6 +10,9 @@ class GamePlay(metaclass=ABCMeta):
     def gameSetup(self): pass
 
     @abstractmethod
+    def setAlgorithm(self): pass
+
+    @abstractmethod
     def trainAgent(self): pass
 
     @abstractmethod

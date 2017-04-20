@@ -1,6 +1,5 @@
 import math
 import random
-import sys
 from collections import deque
 
 import numpy as np
@@ -13,11 +12,10 @@ class dqn(algorithm.Algorithm):
     def __init__(self, session, version='2013', gameparam={}, externalHyperparam={}):
         self.session = session
         self.version = version
-        #self.net_name = name
-        self.hyperparams = self.setDefaultHyperparam()
-        self.hyperparams.update(externalHyperparam)
-        self.gameparams = self.setDefaultGameparam()
-        self.gameparams.update(gameparam)
+        self.hyperparam = self.setDefaultHyperparam()
+        self.hyperparam.update(externalHyperparam)
+        self.gameparam = self.setDefaultGameparam()
+        self.gameparam.update(gameparam)
         self.network_initialized = False
         self.train_episode_count = 0
         self.replay_buffer = deque()
@@ -33,33 +31,33 @@ class dqn(algorithm.Algorithm):
 
 
     def setDefaultHyperparam(self):
-        hyperparams = {}
+        hyperparam = {}
 
-        hyperparams['hidden_layer'] = []
-        hyperparams['hidden_layer'].append({'layer_name':'W1',
+        hyperparam['hidden_layer'] = []
+        hyperparam['hidden_layer'].append({'layer_name':'W1',
                                             'size': {'dtype': 'integer', 'variable': False, 'value': 20, 'minvalue': 2,
                                                     'maxvalue': 1000} })
-        hyperparams['hidden_layer'].append({'layer_name': 'W2',
+        hyperparam['hidden_layer'].append({'layer_name': 'W2',
                                             'size': {'dtype': 'integer', 'variable': False, 'value': 20, 'minvalue': 2,
                                                      'maxvalue': 1000}})
-        hyperparams['hidden_layer'].append({'layer_name': 'W3',
+        hyperparam['hidden_layer'].append({'layer_name': 'W3',
                                             'size': {'dtype': 'integer', 'variable': False, 'value': 20, 'minvalue': 2,
                                                      'maxvalue': 1000}})
-        hyperparams['learning_rate'] = {'dtype':'log10', 'variable':True, 'value':-2.7, 'minvalue':-7, 'maxvalue':0 }
-        hyperparams['discount_ratio'] = {'dtype':'float', 'variable':True, 'value':0.9, 'minvalue':0, 'maxvalue':1 }
+        hyperparam['learning_rate'] = {'dtype':'log10', 'variable':True, 'value':-2.7, 'minvalue':-7, 'maxvalue':0 }
+        hyperparam['discount_ratio'] = {'dtype':'float', 'variable':True, 'value':0.9, 'minvalue':0, 'maxvalue':1 }
 
-        return hyperparams
+        return hyperparam
 
 
     def setDefaultGameparam(self):
-        gameparams = {}
-        gameparams['input_size'] = 30
-        gameparams['output_size'] = 4
-        gameparams['continuous_state'] = 'Y'
-        gameparams['continuous_action'] = 'N'
-        gameparams['replay_size'] = 50000
+        gameparam = {}
+        gameparam['input_size'] = 30
+        gameparam['output_size'] = 4
+        gameparam['continuous_state'] = 'Y'
+        gameparam['continuous_action'] = 'N'
+        gameparam['replay_size'] = 50000
 
-        return gameparams
+        return gameparam
 
 
     class dqnNetwork():
@@ -67,48 +65,48 @@ class dqn(algorithm.Algorithm):
             self.session = session
             self.version = version
             self.scopeName = scopeName
-            self.hyperparams = hyperparam
-            self.gameparams = gameparam
+            self.hyperparam = hyperparam
+            self.gameparam = gameparam
             self.mainDQN = None
             self.targetDQN = None
 
         def buildNetwork(self):
             with tf.variable_scope(self.scopeName):
-                self._X = tf.placeholder(dtype=tf.float32, shape=[None, self.gameparams['input_size']], name="input_X")
+                self._X = tf.placeholder(dtype=tf.float32, shape=[None, self.gameparam['input_size']], name="input_X")
 
                 Lprev = self._X
-                size_prev = self.gameparams['input_size']
-                for idx in range(len(self.hyperparams['hidden_layer'])):
-                    W = tf.get_variable(name=self.hyperparams['hidden_layer'][idx]['layer_name'],
-                                        shape=[size_prev, self.hyperparams['hidden_layer'][idx]['size']['value']],
+                size_prev = self.gameparam['input_size']
+                for idx in range(len(self.hyperparam['hidden_layer'])):
+                    W = tf.get_variable(name=self.hyperparam['hidden_layer'][idx]['layer_name'],
+                                        shape=[size_prev, self.hyperparam['hidden_layer'][idx]['size']['value']],
                                         initializer=tf.contrib.layers.xavier_initializer())
                     # L = tf.nn.tanh(tf.matmul(Lprev, W))
                     L = tf.nn.relu(tf.matmul(Lprev, W))  # ReLu is much more effective than tanh in dqn.
                     Lprev = L
-                    size_prev = self.hyperparams['hidden_layer'][idx]['size']['value']
+                    size_prev = self.hyperparam['hidden_layer'][idx]['size']['value']
 
                 W_last = tf.get_variable(name=(self.scopeName + '_last'),
-                                         shape=[size_prev, self.gameparams['output_size']],
+                                         shape=[size_prev, self.gameparam['output_size']],
                                          initializer=tf.contrib.layers.xavier_initializer())
                 self._QPred = tf.matmul(Lprev, W_last)
 
 
     def buildNetwork(self):
-        self.mainDQN = self.dqnNetwork(self.session, self.version, scopeName="mainDQN", gameparam=self.gameparams,
-                                       hyperparam=self.hyperparams)
+        self.mainDQN = self.dqnNetwork(self.session, self.version, scopeName="mainDQN", gameparam=self.gameparam,
+                                       hyperparam=self.hyperparam)
         self.mainDQN.buildNetwork()
 
         if self.version == '2015':
-            self.targetDQN = self.dqnNetwork(self.session, self.version, scopeName="targetDQN", gameparam=self.gameparams,
-                                           hyperparam=self.hyperparams)
+            self.targetDQN = self.dqnNetwork(self.session, self.version, scopeName="targetDQN", gameparam=self.gameparam,
+                                           hyperparam=self.hyperparam)
             self.targetDQN.buildNetwork()
 
-        self._Y = tf.placeholder(dtype=tf.float32, shape=[None, self.gameparams['output_size']], name="output_Y")
+        self._Y = tf.placeholder(dtype=tf.float32, shape=[None, self.gameparam['output_size']], name="output_Y")
 
         #self._loss = tf.reduce_mean(tf.square(self._Y-self._QPred))
         self._loss = tf.reduce_mean(tf.square(self._Y - self.mainDQN._QPred))
 
-        learning_rate = math.pow(10, self.hyperparams['learning_rate']['value'])
+        learning_rate = math.pow(10, self.hyperparam['learning_rate']['value'])
         print('learning_rate: ', learning_rate)
         self._train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(self._loss)
 
@@ -117,11 +115,8 @@ class dqn(algorithm.Algorithm):
 
 
     def predict(self, state, net="main"):
-        #print("input_size {}".format(self.gameparams['input_size']))
-        x = np.reshape(state, [1, self.gameparams['input_size']])
-        #return self.session.run(self._QPred, feed_dict={self._X: x})
 
-        #dqnNetwork = None
+        x = np.reshape(state, [1, self.gameparam['input_size']])
 
         if net=="main":
             dqnNetwork = self.mainDQN
@@ -132,7 +127,6 @@ class dqn(algorithm.Algorithm):
 
 
     def update(self, x_stack, y_stack):
-        #return self.session.run([self._loss, self._train], feed_dict={self._X: x_stack, self._Y: y_stack})
         return self.session.run([self._loss, self._train], feed_dict={self.mainDQN._X: x_stack, self._Y: y_stack})
 
 
@@ -154,7 +148,7 @@ class dqn(algorithm.Algorithm):
 
     def stepTrain(self, state, action, reward, next_state, done):
         self.replay_buffer.append((state, action, reward, next_state, done))
-        if len(self.replay_buffer) > self.gameparams['replay_size']:
+        if len(self.replay_buffer) > self.gameparam['replay_size']:
             self.replay_buffer.popleft()
 
 
@@ -177,8 +171,8 @@ class dqn(algorithm.Algorithm):
 
 
     def replay_memory_batch(self, replay_batch):
-        x_stack = np.empty(0).reshape(0, self.gameparams['input_size'])
-        y_stack = np.empty(0).reshape(0, self.gameparams['output_size'])
+        x_stack = np.empty(0).reshape(0, self.gameparam['input_size'])
+        y_stack = np.empty(0).reshape(0, self.gameparam['output_size'])
 
         for state, action, reward, next_state, done in replay_batch:
             Q = self.predict(state)
@@ -187,10 +181,10 @@ class dqn(algorithm.Algorithm):
                 Q[0, action] = reward
             else:
                 if self.version == '2013':
-                    Q[0, action] = reward + self.hyperparams['discount_ratio']['value'] * np.max(
+                    Q[0, action] = reward + self.hyperparam['discount_ratio']['value'] * np.max(
                         self.predict(next_state, net="main"))
                 else:   # self.version == '2015'
-                    Q[0, action] = reward + self.hyperparams['discount_ratio']['value'] * np.max(
+                    Q[0, action] = reward + self.hyperparam['discount_ratio']['value'] * np.max(
                         self.predict(next_state, net="target"))
 
         x_stack = np.vstack([x_stack, state])

@@ -20,7 +20,7 @@
  - Presenter : 김동훈  
     -- (slide) http://www.modulabs.co.kr/RLedu_minutes/9720
     
-#### Chapter5. Monte Carlo Methods (2016-12-22)
+#### Chapter5. Monte Carlo Methods (2016-12-22, 29)
 
  - Presenter : 백병인  
     -- (slide) http://www.modulabs.co.kr/RLedu_minutes/10165

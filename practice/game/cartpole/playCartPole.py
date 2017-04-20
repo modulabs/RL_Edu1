@@ -1,12 +1,8 @@
-import sys
-
 import gym
 import tensorflow as tf
 
-#if "../../" not in sys.path:
-#  sys.path.append("../../")
+from practice.algorithm.reinforcementLearning.dqn import dqn
 from practice.game import gameplay
-from practice.algorithm.dqn import dqn
 
 
 class CartPolePlay(gameplay.GamePlay):
@@ -15,7 +11,7 @@ class CartPolePlay(gameplay.GamePlay):
         self.algorithm = None
         self.session = None
         self.env = None
-        self.gameparams = {}
+        self.gameparam = {}
         self.goodStepCount = 0
 
 
@@ -28,12 +24,12 @@ class CartPolePlay(gameplay.GamePlay):
 
 
     def setAlgorithm(self):
-        hyperparams = {}
+        hyperparam = {}
 
         if self.algorithm_name == 'dqn_2013':
-            self.algorithm = dqn(self.session, version='2013', gameparam=self.gameparams, externalHyperparam=hyperparams)
+            self.algorithm = dqn(self.session, version='2013', gameparam=self.gameparam, externalHyperparam=hyperparam)
         elif self.algorithm_name == 'dqn_2015':
-            self.algorithm = dqn(self.session, version='2015', gameparam=self.gameparams, externalHyperparam=hyperparams)
+            self.algorithm = dqn(self.session, version='2015', gameparam=self.gameparam, externalHyperparam=hyperparam)
         else:   # TODO: add more good algorithms!!
             self.algorithm = None
 
@@ -43,15 +39,15 @@ class CartPolePlay(gameplay.GamePlay):
     def gameSetup(self):
         self.env = gym.make('CartPole-v0')
 
-        self.gameparams['max_episode'] = 5000
-        self.gameparams['input_size'] = self.env.observation_space.shape[0]
-        self.gameparams['output_size'] = self.env.action_space.n
-        self.gameparams['max_stepPerEdisode'] = 200
-        self.gameparams['good_stepPerEdisode'] = 195
-        self.gameparams['goodEnoughCount'] = 100
+        self.gameparam['max_episode'] = 5000
+        self.gameparam['input_size'] = self.env.observation_space.shape[0]
+        self.gameparam['output_size'] = self.env.action_space.n
+        self.gameparam['max_stepPerEdisode'] = 200
+        self.gameparam['good_stepPerEdisode'] = 195
+        self.gameparam['goodEnoughCount'] = 100
 
-        print("gameSetup input_size {}".format(self.gameparams['input_size']))
-        print("gameSetup output_size {}".format(self.gameparams['output_size']))
+        print("gameSetup input_size {}".format(self.gameparam['input_size']))
+        print("gameSetup output_size {}".format(self.gameparam['output_size']))
 
         if self.setAlgorithm() is None:
             print(">>>> Unknown Algorithm selected!!")
@@ -73,7 +69,7 @@ class CartPolePlay(gameplay.GamePlay):
     def trainAgent(self):
         self.algorithm.initTraining()
 
-        for episode in range(self.gameparams['max_episode']):
+        for episode in range(self.gameparam['max_episode']):
             state = self.env.reset()
             done = False
             step_count = 0
@@ -89,7 +85,7 @@ class CartPolePlay(gameplay.GamePlay):
                 state = next_state
                 step_count += 1
 
-                if step_count >= self.gameparams['max_stepPerEdisode']:
+                if step_count >= self.gameparam['max_stepPerEdisode']:
                     break
 
             if self.isGoodEnough(step_count):
@@ -105,7 +101,7 @@ class CartPolePlay(gameplay.GamePlay):
 
     def modifyReward(self, reward, done, step_count):
         if done:
-            if step_count < self.gameparams['max_stepPerEdisode']:
+            if step_count < self.gameparam['max_stepPerEdisode']:
                 return -100
 
         return reward
@@ -113,10 +109,10 @@ class CartPolePlay(gameplay.GamePlay):
 
     def isGoodEnough(self, step_count):
         #if step_count > 1000:  # if step_count > 10000: # good enough
-        if step_count >= self.gameparams['good_stepPerEdisode']:
+        if step_count >= self.gameparam['good_stepPerEdisode']:
             self.goodStepCount += 1
 
-            if self.goodStepCount >= self.gameparams['goodEnoughCount']:
+            if self.goodStepCount >= self.gameparam['goodEnoughCount']:
                 return True
 
         else:
