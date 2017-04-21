@@ -24,6 +24,9 @@
  - [Additional] Mixture density network Implementation & Experiment (정연우)  
     - https://github.com/maestrojeong/Machine_learning/tree/master/MDN
     
+ - [Additional] MSE vs. MDN Toy Code & Analysis (정현석)
+    - https://github.com/modulabs/RL_Edu1/tree/master/practice/MDN_toycode
+    
     
     
     
